@@ -1,0 +1,93 @@
+export const sw = {
+  nav: {
+    home: 'Nyumbani',
+    about: 'Kuhusu',
+    projects: 'Miradi',
+    event: 'Tukio',
+    services: 'Huduma zetu',
+    contact: 'Wasiliana',
+    dashboard: 'Dashibodi',
+    opportunities: 'Fursa',
+    applications: 'Maombi',
+    settings: 'Mipangilio',
+    logout: 'Toka'
+  },
+  login: {
+    title: 'Mfuatiliaji wa M-ECAL',
+    subtitle: 'Fursa za usafirishaji — DRC',
+    email: 'Barua pepe',
+    password: 'Nenosiri',
+    submit: 'Ingia',
+    error: 'Taarifa si sahihi'
+  },
+  dashboard: {
+    title: 'Dashibodi',
+    totalActive: 'Fursa hai',
+    newWeek: 'Mpya wiki hii',
+    inProgress: 'Maombi yanayoendelea',
+    closingSoon: 'Kufunga hivi karibuni',
+    lastScrape: 'Ukusanyaji wa mwisho',
+    recent: 'Fursa za hivi karibuni',
+    refresh: 'Onyesha upya sasa',
+    viewAll: 'Ona zote',
+    none: 'Hakuna data bado — endesha ukusanyaji kutoka Mipangilio au subiri ratiba.'
+  },
+  opportunities: {
+    title: 'Fursa',
+    search: 'Tafuta',
+    all: 'Zote',
+    formation: 'Mafunzo',
+    formation_chauffeurs: 'Mafunzo ya madereva',
+    consultance: 'Ushauri',
+    inventaire: 'Hesabu',
+    inventaire_actifs: 'Hesabu ya mali',
+    inventaire_general: 'Hesabu ya jumla',
+    etude_marche: 'Utafiti wa soko',
+    assistance: 'Msaada',
+    sortRecent: 'Za hivi karibuni',
+    sortDeadline: 'Tarehe ya mwisho karibu',
+    sortPlatform: 'Jukwaa',
+    apply: 'Omba',
+    new: 'Mpya',
+    urgent: 'Ya dharura',
+    deadline: 'Tarehe ya mwisho',
+    platform: 'Jukwaa',
+    createApp: 'Unda ombi',
+    external: 'Kiungo cha chanzo',
+    archive: 'Weka kumbukumbu',
+    aiScore: 'Ufanisi wa AI'
+  },
+  applications: {
+    title: 'Maombi',
+    draft: 'Rasimu',
+    submitted: 'Imetumwa',
+    pending: 'Inasubiri',
+    interview: 'Mahojiano',
+    won: 'Imeshinda',
+    rejected: 'Imekataliwa',
+    notes: 'Maelezo',
+    followUp: 'Tarehe ya ufuatiliaji',
+    save: 'Hifadhi'
+  },
+  settings: {
+    title: 'Mipangilio',
+    alerts: 'Arifa',
+    alertsOn: 'Washa arifa',
+    frequency: 'Mzunguko',
+    immediate: 'Mara moja (WhatsApp)',
+    daily: 'Muhtasari wa kila siku (barua pepe)',
+    weekly: 'Muhtasari wa kila wiki',
+    whatsapp: 'Nambari ya WhatsApp',
+    digestEmail: 'Barua pepe ya muhtasari',
+    keywords: 'Maneno muhimu (tenganisha kwa koma)',
+    test: 'Tuma arifa ya majaribio',
+    scrape: 'Endesha ukusanyaji sasa',
+    langPrefs: 'Lugha ya kiolesura'
+  },
+  common: {
+    loading: 'Inapakia…',
+    save: 'Hifadhi',
+    cancel: 'Ghairi',
+    close: 'Funga'
+  }
+};

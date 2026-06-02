@@ -1,0 +1,93 @@
+export const fr = {
+  nav: {
+    home: 'Accueil',
+    about: 'À propos',
+    projects: 'Projets',
+    event: 'Événement',
+    services: 'Nos services',
+    contact: 'Contact',
+    dashboard: 'Tableau de bord',
+    opportunities: 'Opportunités',
+    applications: 'Candidatures',
+    settings: 'Paramètres',
+    logout: 'Déconnexion'
+  },
+  login: {
+    title: 'Moniteur M-ECAL',
+    subtitle: 'Opportunités logistiques — RDC',
+    email: 'E-mail',
+    password: 'Mot de passe',
+    submit: 'Connexion',
+    error: 'Identifiants invalides'
+  },
+  dashboard: {
+    title: 'Tableau de bord',
+    totalActive: 'Opportunités actives',
+    newWeek: 'Nouvelles cette semaine',
+    inProgress: 'Candidatures en cours',
+    closingSoon: 'Clôture proche',
+    lastScrape: 'Dernière collecte',
+    recent: 'Opportunités récentes',
+    refresh: 'Actualiser maintenant',
+    viewAll: 'Voir tout',
+    none: 'Pas encore de données — lancez une collecte depuis Paramètres ou attendez le planificateur.'
+  },
+  opportunities: {
+    title: 'Opportunités',
+    search: 'Rechercher',
+    all: 'Toutes',
+    formation: 'Formation',
+    formation_chauffeurs: 'Formation chauffeurs',
+    consultance: 'Consultance',
+    inventaire: 'Inventaire',
+    inventaire_actifs: 'Inventaire d’actifs',
+    inventaire_general: 'Inventaire général',
+    etude_marche: 'Étude de marché',
+    assistance: 'Assistance',
+    sortRecent: 'Plus récentes',
+    sortDeadline: 'Échéance la plus proche',
+    sortPlatform: 'Plateforme',
+    apply: 'Postuler',
+    new: 'Nouveau',
+    urgent: 'Urgent',
+    deadline: 'Clôture',
+    platform: 'Plateforme',
+    createApp: 'Créer une candidature',
+    external: 'Lien source',
+    archive: 'Archiver',
+    aiScore: 'Pertinence IA'
+  },
+  applications: {
+    title: 'Candidatures',
+    draft: 'Brouillon',
+    submitted: 'Soumis',
+    pending: 'En attente',
+    interview: 'Entretien',
+    won: 'Gagné',
+    rejected: 'Rejeté',
+    notes: 'Notes',
+    followUp: 'Date de relance',
+    save: 'Enregistrer'
+  },
+  settings: {
+    title: 'Paramètres',
+    alerts: 'Alertes',
+    alertsOn: 'Activer les alertes',
+    frequency: 'Fréquence',
+    immediate: 'Immédiat (WhatsApp)',
+    daily: 'Résumé quotidien (e-mail)',
+    weekly: 'Résumé hebdomadaire',
+    whatsapp: 'Numéro WhatsApp',
+    digestEmail: 'E-mail pour résumés',
+    keywords: 'Mots-clés personnalisés (séparés par des virgules)',
+    test: 'Envoyer une notification test',
+    scrape: 'Lancer la collecte maintenant',
+    langPrefs: 'Langue de l’interface'
+  },
+  common: {
+    loading: 'Chargement…',
+    save: 'Enregistrer',
+    cancel: 'Annuler',
+    close: 'Fermer'
+  }
+};

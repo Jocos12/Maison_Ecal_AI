@@ -1,0 +1,93 @@
+export const en = {
+  nav: {
+    home: 'Home',
+    about: 'About',
+    projects: 'Projects',
+    event: 'Event',
+    services: 'Our services',
+    contact: 'Contact',
+    dashboard: 'Dashboard',
+    opportunities: 'Opportunities',
+    applications: 'Applications',
+    settings: 'Settings',
+    logout: 'Log out'
+  },
+  login: {
+    title: 'M-ECAL Monitor',
+    subtitle: 'Logistics opportunities — DRC',
+    email: 'Email',
+    password: 'Password',
+    submit: 'Sign in',
+    error: 'Invalid credentials'
+  },
+  dashboard: {
+    title: 'Dashboard',
+    totalActive: 'Active opportunities',
+    newWeek: 'New this week',
+    inProgress: 'Applications in progress',
+    closingSoon: 'Closing soon',
+    lastScrape: 'Last collection',
+    recent: 'Recent opportunities',
+    refresh: 'Refresh now',
+    viewAll: 'View all',
+    none: 'No data yet — run a collection from Settings or wait for the scheduler.'
+  },
+  opportunities: {
+    title: 'Opportunities',
+    search: 'Search',
+    all: 'All',
+    formation: 'Training',
+    formation_chauffeurs: 'Driver training',
+    consultance: 'Consulting',
+    inventaire: 'Inventory',
+    inventaire_actifs: 'Asset inventory',
+    inventaire_general: 'General inventory',
+    etude_marche: 'Market study',
+    assistance: 'Assistance',
+    sortRecent: 'Most recent',
+    sortDeadline: 'Deadline soonest',
+    sortPlatform: 'Platform',
+    apply: 'Apply',
+    new: 'New',
+    urgent: 'Urgent',
+    deadline: 'Deadline',
+    platform: 'Platform',
+    createApp: 'Create application',
+    external: 'Open source',
+    archive: 'Archive',
+    aiScore: 'AI relevance'
+  },
+  applications: {
+    title: 'Applications',
+    draft: 'Draft',
+    submitted: 'Submitted',
+    pending: 'Pending',
+    interview: 'Interview',
+    won: 'Won',
+    rejected: 'Rejected',
+    notes: 'Notes',
+    followUp: 'Follow-up date',
+    save: 'Save'
+  },
+  settings: {
+    title: 'Settings',
+    alerts: 'Alerts',
+    alertsOn: 'Enable alerts',
+    frequency: 'Frequency',
+    immediate: 'Immediate (WhatsApp)',
+    daily: 'Daily digest (email)',
+    weekly: 'Weekly digest',
+    whatsapp: 'WhatsApp number',
+    digestEmail: 'Digest email',
+    keywords: 'Custom keywords (comma-separated)',
+    test: 'Send test notification',
+    scrape: 'Run collection now',
+    langPrefs: 'Interface language'
+  },
+  common: {
+    loading: 'Loading…',
+    save: 'Save',
+    cancel: 'Cancel',
+    close: 'Close'
+  }
+};
