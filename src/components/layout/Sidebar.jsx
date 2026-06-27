@@ -12,7 +12,6 @@ import {
   LayoutDashboard,
   Linkedin,
   Mail,
-  Megaphone,
   Settings,
   ShieldCheck
 } from 'lucide-react';
@@ -70,7 +69,7 @@ function buildNavGroups(t, pendingCount = 0) {
       titleKey: 'sidebar.groups.comms',
       items: [
         { to: '/messaging', labelKey: 'sidebar.messaging', icon: Mail, color: 'text-red-400', badge: '0' },
-        { to: '/marketing', labelKey: 'sidebar.marketing', icon: Megaphone, color: 'text-orange-400' }
+        { to: '/marketing', labelKey: 'sidebar.marketing', icon: Bell, color: 'text-orange-400' }
       ]
     },
     {
