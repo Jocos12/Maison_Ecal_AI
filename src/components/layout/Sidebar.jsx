@@ -10,7 +10,7 @@ import {
   FolderTree,
   Globe2,
   LayoutDashboard,
-  Linkedin,
+  Link2,
   Mail,
   Settings,
   ShieldCheck
@@ -57,7 +57,7 @@ function buildNavGroups(t, pendingCount = 0) {
         {
           to: '/assistant-emploi?section=linkedin',
           labelKey: 'sidebar.linkedin',
-          icon: Linkedin,
+          icon: Link2,
           color: 'text-[#0A66C2]',
           linkedInDot: true,
           navActive: (_, loc) =>
