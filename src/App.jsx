@@ -9,6 +9,8 @@ import SignupPage from './pages/auth/SignupPage.jsx';
 import VerifyOTPPage from './pages/auth/VerifyOTPPage.jsx';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage.jsx';
 import ResetPasswordPage from './pages/auth/ResetPasswordPage.jsx';
+import PendingApprovalPage from './pages/auth/PendingApprovalPage.jsx';
+import AdminUsers from './pages/AdminUsers.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Opportunities from './pages/Opportunities.jsx';
 import Applications from './pages/Applications.jsx';
@@ -21,12 +23,15 @@ import Alerts from './pages/Alerts.jsx';
 import Archive from './pages/Archive.jsx';
 import Messaging from './pages/Messaging.jsx';
 import Marketing from './pages/Marketing.jsx';
+import JobAssistant from './pages/JobAssistant.jsx';
+import I18nUserSync from './components/I18nUserSync.jsx';
 
 export default function App() {
   return (
     <ThemeProvider>
       <AppProvider>
         <I18nProvider>
+          <I18nUserSync />
           <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
           <Toaster
             position="top-right"
@@ -42,6 +47,7 @@ export default function App() {
             <Route path="/verify-otp" element={<VerifyOTPPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/pending-approval" element={<PendingApprovalPage />} />
             <Route element={<PrivateLayout />}>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
@@ -50,12 +56,14 @@ export default function App() {
               <Route path="/sources" element={<Sources />} />
               <Route path="/categories" element={<Categories />} />
               <Route path="/agent" element={<Agent />} />
+              <Route path="/assistant-emploi" element={<JobAssistant />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/alerts" element={<Alerts />} />
               <Route path="/messaging" element={<Messaging />} />
               <Route path="/marketing" element={<Marketing />} />
               <Route path="/archive" element={<Archive />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/admin/users" element={<AdminUsers />} />
             </Route>
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>

@@ -14,6 +14,9 @@ export default function OpportunityModal({ opp, onClose, onCreated }) {
 
   if (!opp) return null;
 
+  const showVerify =
+    opp.locationStatus === 'a_verifier' || opp.aiAnalysis?.pays_confirme_rdc === 'a_verifier';
+
   const createApplication = async () => {
     try {
       await api.post('/api/applications', {
@@ -68,6 +71,11 @@ export default function OpportunityModal({ opp, onClose, onCreated }) {
             <span className="rounded border border-blue-500/40 px-2 py-0.5 text-blue-200">
               {t(`opportunities.${opp.category}`)}
             </span>
+            {showVerify && (
+              <span className="rounded border border-amber-500/50 bg-amber-500/15 px-2 py-0.5 text-amber-200">
+                {t('opportunities.locationToVerify')}
+              </span>
+            )}
             {opp.location && <span>{opp.location}</span>}
           </div>
           {opp.organization && <p className="text-slate-500 dark:text-slate-400">{opp.organization}</p>}

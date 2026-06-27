@@ -1,9 +1,17 @@
-import React, { createContext, useContext, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useMemo, useCallback, useEffect } from 'react';
 import { en } from '../locales/en.js';
 import { fr } from '../locales/fr.js';
 import { sw } from '../locales/sw.js';
+import { enExtended } from '../locales/en-ext.js';
+import { frExtended } from '../locales/fr-ext.js';
+import { swExtended } from '../locales/sw-ext.js';
+import { mergeLocales } from '../locales/mergeLocales.js';
 
-const dict = { en, fr, sw };
+const dict = {
+  en: mergeLocales(en, enExtended),
+  fr: mergeLocales(fr, frExtended),
+  sw: mergeLocales(sw, swExtended)
+};
 
 const I18nContext = createContext({
   lang: 'fr',
@@ -24,9 +32,14 @@ export function I18nProvider({ children }) {
   const [lang, setLangState] = React.useState(() => localStorage.getItem('mecal_lang') || 'fr');
 
   const setLang = useCallback((l) => {
+    if (!['fr', 'en', 'sw'].includes(l)) return;
     setLangState(l);
     localStorage.setItem('mecal_lang', l);
   }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   const t = useCallback(
     (key, vars) => {

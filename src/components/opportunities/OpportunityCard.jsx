@@ -1,18 +1,9 @@
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useI18n } from '../../context/I18nContext.jsx';
-import { ExternalLink, Sparkles } from 'lucide-react';
-
-const catColors = {
-  formation: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-  formation_chauffeurs: 'bg-lime-500/15 text-lime-300 border-lime-500/30',
-  consultance: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
-  inventaire: 'bg-amber-500/15 text-amber-200 border-amber-500/30',
-  inventaire_actifs: 'bg-orange-500/15 text-orange-200 border-orange-500/30',
-  inventaire_general: 'bg-yellow-500/15 text-yellow-200 border-yellow-500/30',
-  etude_marche: 'bg-violet-500/15 text-violet-200 border-violet-500/30',
-  assistance: 'bg-slate-500/20 text-slate-200 border-slate-500/30'
-};
+import { ExternalLink } from 'lucide-react';
+import ScoreRing from '../ui/ScoreRing.jsx';
+import { CATEGORY_BADGE, platformPillClass } from '../../utils/opportunityUi.js';
 
 const cityColors = {
   Bukavu: 'bg-green-500 text-white',
@@ -34,61 +25,94 @@ function isClosingSoon(deadline) {
   return days >= 0 && days <= 7;
 }
 
-export default function OpportunityCard({ opp, onOpen, compact = false }) {
+function needsLocationReview(opp) {
+  return opp?.locationStatus === 'a_verifier' || opp?.aiAnalysis?.pays_confirme_rdc === 'a_verifier';
+}
+
+function scorePercent(opp) {
+  if (opp.aiAnalysis?.score != null) {
+    return opp.aiAnalysis.score > 1 ? Math.round(opp.aiAnalysis.score) : Math.round(opp.aiAnalysis.score * 100);
+  }
+  if (opp.aiRelevanceScore != null) return Math.round(opp.aiRelevanceScore * 100);
+  return 0;
+}
+
+export default function OpportunityCard({ opp, onOpen, compact = false, index = 0 }) {
   const { t, lang } = useI18n();
   const locale = lang === 'fr' ? fr : undefined;
   const showNew = opp.isNew || isRecent(opp.createdAt);
   const showUrgent = opp.isUrgent || isClosingSoon(opp.deadline);
+  const showVerify = needsLocationReview(opp);
+  const pct = scorePercent(opp);
+  const catBadge = CATEGORY_BADGE[opp.category] || CATEGORY_BADGE.assistance;
+  const platformClass = platformPillClass(opp.platform);
 
   return (
     <button
       type="button"
       onClick={() => onOpen(opp)}
-      className={`w-full text-left rounded-xl border border-slate-200 bg-white/80 p-4 hover:-translate-y-0.5 hover:border-blue-500/50 hover:shadow-lg transition dark:border-slate-700/80 dark:bg-slate-900/60 dark:hover:shadow-blue-900/20 ${
-        compact ? 'flex flex-col gap-2 md:flex-row md:items-center md:justify-between' : 'flex flex-col gap-2'
+      className={`mecal-fade-up group w-full rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-md transition-all duration-200 hover:-translate-y-1 hover:border-blue-400 hover:shadow-xl hover:shadow-blue-500/10 dark:border-slate-700 dark:bg-slate-900/80 dark:hover:border-blue-500/50 ${
+        compact ? 'flex flex-col gap-3 md:flex-row md:items-center' : 'flex flex-col gap-3'
       }`}
+      style={{ animationDelay: `${(index % 12) * 50}ms` }}
     >
-      <div className="flex flex-wrap items-start justify-between gap-2 md:flex-1">
-        <h3 className="font-semibold text-slate-950 leading-snug line-clamp-2 dark:text-white">{opp.title}</h3>
-        <div className="flex flex-wrap gap-1 shrink-0">
-          {showNew && (
-            <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-blue-600 text-white">
+      <div className="flex flex-1 flex-col gap-2">
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="line-clamp-2 flex-1 font-bold leading-snug text-slate-900 group-hover:text-blue-700 dark:text-white dark:group-hover:text-blue-300">
+            {opp.title}
+          </h3>
+          {pct > 0 ? <ScoreRing value={pct} /> : null}
+        </div>
+
+        <div className="flex flex-wrap gap-1.5">
+          {showNew ? (
+            <span className="mecal-pulse-badge rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-bold uppercase text-white">
               {t('opportunities.new')}
             </span>
-          )}
-          {showUrgent && (
-            <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-red-600 text-white">
+          ) : null}
+          {showUrgent ? (
+            <span className="rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-bold uppercase text-white">
               {t('opportunities.urgent')}
             </span>
-          )}
-          {opp.ville && opp.ville !== 'Non précisé' && (
-            <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${cityColors[opp.ville] || cityColors.RDC}`}>
+          ) : null}
+          {showVerify ? (
+            <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-950">
+              {t('opportunities.locationToVerify')}
+            </span>
+          ) : null}
+          {opp.ville && opp.ville !== 'Non précisé' ? (
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${cityColors[opp.ville] || cityColors.RDC}`}
+            >
               {opp.ville}
             </span>
-          )}
+          ) : null}
         </div>
-      </div>
-      <div className="flex flex-wrap gap-2 text-xs">
-        <span className={`rounded-full border px-2 py-0.5 ${catColors[opp.category] || catColors.assistance}`}>
-          {t(`opportunities.${opp.category}`)}
-        </span>
-        <span className="rounded-full border border-slate-300 px-2 py-0.5 text-slate-600 dark:border-slate-600 dark:text-slate-300">{opp.platform}</span>
-      </div>
-      {opp.organization && <p className="text-sm text-slate-500 line-clamp-1 dark:text-slate-400">{opp.organization}</p>}
-      <div className="flex items-center justify-between text-xs text-slate-500 mt-auto pt-2 border-t border-slate-200 dark:border-slate-800">
-        <span>
-          {t('opportunities.deadline')}:{' '}
-          {opp.deadline
-            ? format(new Date(opp.deadline), 'dd MMM yyyy', { locale })
-            : '—'}
-        </span>
-        {opp.aiRelevanceScore != null && (
-          <span className="flex items-center gap-1 text-blue-300" title={t('opportunities.aiScore')}>
-            <Sparkles className="h-3 w-3" />
-            {Math.round(opp.aiRelevanceScore * 100)}%
+
+        <div className="flex flex-wrap gap-2">
+          <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${catBadge}`}>
+            {t(`opportunities.${opp.category}`)}
           </span>
-        )}
-        <ExternalLink className="h-4 w-4 text-slate-500" />
+          <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ring-1 ${platformClass}`}>
+            {opp.platform}
+          </span>
+        </div>
+
+        {opp.organization ? (
+          <p className="line-clamp-1 text-sm text-slate-500 dark:text-slate-400">{opp.organization}</p>
+        ) : null}
+      </div>
+
+      <div
+        className={`flex items-center justify-between gap-2 border-t border-slate-100 pt-3 text-xs dark:border-slate-800 ${
+          compact ? 'md:border-t-0 md:pt-0 md:pl-4 md:border-l' : 'mt-auto'
+        }`}
+      >
+        <span className={showUrgent ? 'font-semibold text-red-600' : 'text-slate-500'}>
+          {t('opportunities.deadline')}:{' '}
+          {opp.deadline ? format(new Date(opp.deadline), 'dd MMM yyyy', { locale }) : '—'}
+        </span>
+        <ExternalLink className="h-4 w-4 text-slate-400 transition group-hover:text-blue-600" />
       </div>
     </button>
   );

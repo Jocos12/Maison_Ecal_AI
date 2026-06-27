@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client.js';
+import { useI18n } from '../context/I18nContext.jsx';
 
 const categories = [
   ['formation', 'Formations procédures logistiques'],
@@ -11,6 +12,7 @@ const categories = [
 ];
 
 export default function Categories() {
+  const { t } = useI18n();
   const [enabled, setEnabled] = useState(Object.fromEntries(categories.map(([key]) => [key, true])));
   const [counts, setCounts] = useState({});
 
@@ -23,10 +25,8 @@ export default function Categories() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-950 dark:text-white">Catégories de Services</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Les filtres métier M-ECAL excluent les offres d’emploi et gardent uniquement les services logistiques.
-        </p>
+        <h1 className="text-2xl font-bold text-slate-950 dark:text-white">{t('pages.categories.title')}</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400">{t('pages.categories.subtitle')}</p>
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
         {categories.map(([key, label]) => (

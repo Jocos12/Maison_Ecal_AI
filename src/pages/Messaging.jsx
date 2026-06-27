@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { api } from '../api/client.js';
+import { useI18n } from '../context/I18nContext.jsx';
 
 function categorizeEmail(email) {
   const from = (email.from || '').toLowerCase();
@@ -297,6 +298,7 @@ function getConversationParts(email, myEmail = '') {
 }
 
 export default function Messaging() {
+  const { t } = useI18n();
   const [messages, setMessages] = useState(() => {
     try {
       return JSON.parse(sessionStorage.getItem(GMAIL_CACHE_KEY) || '[]').map(normalizeEmail);
@@ -321,7 +323,7 @@ export default function Messaging() {
   const [sendingCompose, setSendingCompose] = useState(false);
 
   const publishGmailCount = (items) => {
-    const count = items.length;
+    const count = items.filter(isUnread).length;
     localStorage.setItem(GMAIL_COUNT_KEY, String(count));
     window.dispatchEvent(new CustomEvent('mecal:gmail-count', { detail: count }));
   };
@@ -345,10 +347,26 @@ export default function Messaging() {
       sessionStorage.setItem(GMAIL_CACHE_KEY, JSON.stringify(nextMessages));
       publishGmailCount(nextMessages);
     } catch (e) {
+      if (e.response?.status === 401 && e.response?.data?.connected === false) {
+        setGmailStatus({
+          connected: false,
+          configured: e.response?.data?.configured ?? true,
+          userEmail: e.response?.data?.userEmail
+        });
+        setMessages([]);
+        sessionStorage.removeItem(GMAIL_CACHE_KEY);
+        publishGmailCount([]);
+        toast.error(e.response?.data?.message || 'Session Gmail expirée. Reconnectez Gmail.');
+        return;
+      }
+      if (e.response?.status === 400 || e.response?.status === 502) {
+        toast.error(e.response?.data?.message || 'Erreur Gmail lors du chargement des messages.');
+        return;
+      }
       if (e.response?.status === 429) {
         toast.error('Gmail reçoit trop de requêtes. Réessayez dans quelques secondes.');
       } else {
-        toast.error(e.response?.data?.message || 'Impossible de vérifier Gmail');
+        toast.error(e.response?.data?.message || 'Impossible de charger Gmail');
       }
     } finally {
       setRefreshingMessages(false);
@@ -533,7 +551,7 @@ export default function Messaging() {
     <div className="messaging-page space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-950 dark:text-white">Messagerie Gmail</h1>
+          <h1 className="text-2xl font-bold text-slate-950 dark:text-white">{t('pages.messaging.title')}</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">
             {gmailStatus.connected
               ? `Connecté à ${gmailStatus.userEmail || 'Gmail'}`

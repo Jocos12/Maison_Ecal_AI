@@ -1,11 +1,50 @@
-import { Outlet, Navigate } from 'react-router-dom';
+import { Outlet, Navigate, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import Navbar from '../components/layout/Navbar.jsx';
 import Sidebar from '../components/layout/Sidebar.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { Loader2 } from 'lucide-react';
+import { syncAppNotifications } from '../utils/syncAppNotifications.js';
+import { getAlertSettings, startAlertScheduler } from '../services/alertService.js';
+import AIAgentFloat from '../components/agent/AIAgentFloat.jsx';
 
 export function PrivateLayout() {
   const { user, authLoading } = useApp();
+  const location = useLocation();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const isJobAssistant =
+    location.pathname === '/assistant-emploi' &&
+    !new URLSearchParams(location.search).get('section');
+
+  useEffect(() => {
+    if (!user?.id) return undefined;
+    syncAppNotifications().catch(() => {});
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        syncAppNotifications().catch(() => {});
+      }
+    }, 10 * 60 * 1000);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        syncAppNotifications().catch(() => {});
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return undefined;
+    const settings = getAlertSettings();
+    if (settings.enabled === false) return undefined;
+    const alertInterval = startAlertScheduler(settings);
+    return () => {
+      if (alertInterval) window.clearInterval(alertInterval);
+    };
+  }, [user?.id]);
 
   if (authLoading) {
     return (
@@ -18,14 +57,27 @@ export function PrivateLayout() {
   if (!user) return <Navigate to="/login" replace />;
 
   return (
-    <div className="min-h-screen flex flex-col mecal-hero-bg">
-      <Navbar />
-      <div className="flex flex-1 max-w-[1600px] mx-auto w-full min-h-0">
-        <Sidebar />
-        <main className="min-w-0 flex-1 p-4 md:p-8 overflow-x-auto text-slate-900 dark:text-slate-100">
+    <div className="mecal-hero-bg flex h-screen flex-col overflow-hidden">
+      <Navbar onMenuToggle={() => setMobileNavOpen((v) => !v)} />
+      <div className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 overflow-hidden">
+        {mobileNavOpen ? (
+          <button
+            type="button"
+            className="fixed inset-0 z-40 bg-black/40 md:hidden"
+            aria-label="Fermer le menu"
+            onClick={() => setMobileNavOpen(false)}
+          />
+        ) : null}
+        <Sidebar variant={mobileNavOpen ? 'mobile' : 'desktop'} onNavigate={() => setMobileNavOpen(false)} />
+        <main
+          className={`flex min-h-0 min-w-0 flex-1 flex-col p-4 text-slate-900 md:p-8 dark:text-slate-100 ${
+            isJobAssistant ? 'overflow-hidden' : 'overflow-x-auto overflow-y-auto'
+          }`}
+        >
           <Outlet />
         </main>
       </div>
+      <AIAgentFloat />
     </div>
   );
 }

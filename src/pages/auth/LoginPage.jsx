@@ -4,6 +4,7 @@ import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../../api/client.js';
 import { useApp } from '../../context/AppContext.jsx';
+import { useI18n } from '../../context/I18nContext.jsx';
 import AuthBackground from '../../components/auth/AuthBackground.jsx';
 import AuthCard from '../../components/auth/AuthCard.jsx';
 import { Button } from '../../components/ui/button.jsx';
@@ -13,6 +14,7 @@ import { Label } from '../../components/ui/label.jsx';
 export default function LoginPage() {
   const nav = useNavigate();
   const { refreshMe } = useApp();
+  const { t } = useI18n();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
@@ -33,16 +35,21 @@ export default function LoginPage() {
       const { data } = await api.post('/api/auth/login', { email, password });
       if (data.requiresOtp) {
         sessionStorage.setItem('mecal_pending_email', data.email);
-        toast.success('Code envoyé à votre e-mail');
+        toast.success(t('auth.toastOtpSent'));
         nav('/verify-otp', { state: { email: data.email } });
       } else {
         await refreshMe();
-        toast.success('Connexion réussie');
+        toast.success(t('auth.toastLoginOk'));
         nav('/dashboard', { replace: true });
       }
     } catch (err) {
-      const msg = err.response?.data?.message || 'Identifiants invalides';
-      setError(msg);
+      if (err.response?.data?.code === 'PENDING_APPROVAL') {
+        nav('/pending-approval', {
+          state: { email, message: err.response.data.message }
+        });
+        return;
+      }
+      setError(err.response?.data?.message || t('auth.errorInvalid'));
       triggerShake();
     } finally {
       setLoading(false);
@@ -51,7 +58,7 @@ export default function LoginPage() {
 
   return (
     <AuthBackground>
-      <AuthCard title="Connexion" description="Moniteur d'opportunités — RDC">
+      <AuthCard title={t('auth.loginTitle')} description={t('auth.loginDesc')}>
         <form onSubmit={submit} className={`space-y-5 ${shake ? 'animate-shake' : ''}`}>
           {error && (
             <p className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-center text-sm text-red-200">
@@ -59,7 +66,7 @@ export default function LoginPage() {
             </p>
           )}
           <div className="space-y-2">
-            <Label htmlFor="email">E-mail</Label>
+            <Label htmlFor="email">{t('auth.email')}</Label>
             <Input
               id="email"
               type="email"
@@ -70,7 +77,7 @@ export default function LoginPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Mot de passe</Label>
+            <Label htmlFor="password">{t('auth.password')}</Label>
             <div className="relative">
               <Input
                 id="password"
@@ -93,16 +100,16 @@ export default function LoginPage() {
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Connexion
+            {t('auth.login')}
           </Button>
           <div className="flex flex-col gap-2 text-center text-sm">
             <Link to="/forgot-password" className="text-blue-400 hover:text-blue-300 hover:underline">
-              Mot de passe oublié ?
+              {t('auth.forgotLink')}
             </Link>
             <span className="text-slate-500">
-              Pas encore de compte ?{' '}
+              {t('auth.noAccount')}{' '}
               <Link to="/signup" className="font-semibold text-blue-400 hover:text-blue-300 hover:underline">
-                S&apos;inscrire
+                {t('auth.signUpLink')}
               </Link>
             </span>
           </div>

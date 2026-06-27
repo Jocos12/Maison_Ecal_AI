@@ -15,6 +15,7 @@ export default function Opportunities() {
   const [sort, setSort] = useState('recent');
   const [source, setSource] = useState('');
   const [country, setCountry] = useState('');
+  const [ville, setVille] = useState('');
   const [status, setStatus] = useState('');
   const [viewMode, setViewMode] = useState('cards');
   const [sources, setSources] = useState([]);
@@ -34,14 +35,14 @@ export default function Opportunities() {
       limit: 20,
       ...(category ? { category } : {}),
       ...(source ? { platform: source } : {}),
-      ...(selectedCities.length ? { ville: selectedCities.join(',') } : {}),
+      ...(ville ? { ville } : selectedCities.length ? { ville: selectedCities.join(',') } : {}),
       ...(country ? { country } : {}),
       ...(status === 'new' ? { isNew: true } : {}),
       ...(status === 'urgent' ? { isUrgent: true } : {}),
       ...(search ? { search } : {}),
       sort: sort === 'recent' ? undefined : sort
     }),
-    [page, category, source, selectedCities, country, status, search, sort]
+    [page, category, source, ville, selectedCities, country, status, search, sort]
   );
 
   const { items, total, pages, loading, reload } = useOpportunities(params);
@@ -84,12 +85,13 @@ export default function Opportunities() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-950 dark:text-white">{t('opportunities.title')}</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Services logistiques uniquement: formations, inventaires, études de marché, consultance et assistance.
-        </p>
-      </div>
+      <section className="mecal-hero-dashboard relative overflow-hidden rounded-3xl px-6 py-7 text-white shadow-xl md:px-8">
+        <div className="pointer-events-none absolute -right-16 top-0 h-40 w-40 rounded-full bg-cyan-400/20 blur-3xl" />
+        <h1 className="mecal-title-shine text-2xl font-bold tracking-tight md:text-3xl">
+          {t('opportunities.title')}
+        </h1>
+        <p className="mt-2 max-w-2xl text-sm text-blue-100/90">{t('opportunities.subtitle')}</p>
+      </section>
       <FilterBar
         category={category}
         onCategory={(c) => {
@@ -115,6 +117,11 @@ export default function Opportunities() {
         country={country}
         onCountry={(s) => {
           setCountry(s);
+          setPage(1);
+        }}
+        ville={ville}
+        onVille={(v) => {
+          setVille(v);
           setPage(1);
         }}
         status={status}

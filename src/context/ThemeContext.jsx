@@ -4,8 +4,8 @@ const ThemeContext = createContext(null);
 const STORAGE_KEY = 'mecal_theme';
 
 function getInitialTheme() {
-  if (typeof window === 'undefined') return 'dark';
-  return localStorage.getItem(STORAGE_KEY) || 'dark';
+  if (typeof window === 'undefined') return 'light';
+  return localStorage.getItem(STORAGE_KEY) || 'light';
 }
 
 export function ThemeProvider({ children }) {

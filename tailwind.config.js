@@ -26,6 +26,14 @@ export default {
           '0%': { opacity: '0', transform: 'translateY(16px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' }
         },
+        slideInRight: {
+          '0%': { opacity: '0', transform: 'translateX(20px)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' }
+        },
+        fadeInUp: {
+          '0%': { opacity: '0', transform: 'translateY(16px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' }
+        },
         authFloat1: {
           '0%,100%': { transform: 'translate(0, 0)' },
           '50%': { transform: 'translate(40px, 20px)' }
@@ -42,6 +50,8 @@ export default {
       animation: {
         shake: 'shake 0.45s ease-in-out',
         'fade-in': 'fadeIn 0.45s ease-out forwards',
+        'slide-in-right': 'slideInRight 0.4s ease-out forwards',
+        'fade-in-up': 'fadeInUp 0.5s ease-out 0.1s both',
         'auth-float-1': 'authFloat1 18s ease-in-out infinite',
         'auth-float-2': 'authFloat2 22s ease-in-out infinite',
         'auth-spin-slow': 'authSpinSlow 25s ease-in-out infinite'

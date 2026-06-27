@@ -2,31 +2,11 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useI18n } from '../../context/I18nContext.jsx';
 import { useApp } from '../../context/AppContext.jsx';
 import { useTheme } from '../../context/ThemeContext.jsx';
-import { LayoutDashboard, Briefcase, ClipboardList, Settings, LogOut, Moon, Sun } from 'lucide-react';
+import LanguageSelect from './LanguageSelect.jsx';
+import NotificationDropdown from '../notifications/NotificationDropdown.jsx';
+import { LayoutDashboard, Briefcase, ClipboardList, Settings, LogOut, Moon, Sun, Menu } from 'lucide-react';
 
-function LangFlags({ lang, setLang }) {
-  const btn = (code, label, flag) => (
-    <button
-      type="button"
-      title={label}
-      onClick={() => setLang(code)}
-      className={`rounded px-1.5 py-0.5 text-lg leading-none transition ${
-        lang === code ? 'ring-2 ring-blue-500 bg-slate-800' : 'opacity-70 hover:opacity-100'
-      }`}
-    >
-      {flag}
-    </button>
-  );
-  return (
-    <div className="flex items-center gap-1 border-l border-slate-600 pl-3 ml-2">
-      {btn('en', 'English', '🇬🇧')}
-      {btn('fr', 'Français', '🇫🇷')}
-      {btn('sw', 'Kiswahili', '🇰🇪')}
-    </div>
-  );
-}
-
-function EcalLogo() {
+function EcalLogo({ tagline }) {
   return (
     <Link to="/" className="flex items-center gap-2 group shrink-0">
       <div className="relative flex items-end font-bold text-xl tracking-tight text-slate-950 dark:text-white">
@@ -45,14 +25,14 @@ function EcalLogo() {
         <span className="pl-0.5">ECAL</span>
       </div>
       <span className="hidden sm:block text-[10px] uppercase tracking-widest text-slate-500 dark:text-slate-400 max-w-[140px] leading-tight">
-        Maison d&apos;Études, Conseil &amp; Assistance Logistique
+        {tagline}
       </span>
     </Link>
   );
 }
 
-export default function Navbar() {
-  const { t, lang, setLang } = useI18n();
+export default function Navbar({ onMenuToggle }) {
+  const { t } = useI18n();
   const { user, logout } = useApp();
   const { isDark, toggleTheme } = useTheme();
   const nav = useNavigate();
@@ -70,7 +50,7 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/85 backdrop-blur-md dark:border-slate-700/80 dark:bg-slate-950/90">
       <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3">
-        <EcalLogo />
+        <EcalLogo tagline={t('layout.logoTagline')} />
         <nav className="hidden lg:flex items-center gap-1 flex-1 justify-center">
           <a href="https://maison-ecal.com" className={linkClass({ isActive: false })} target="_blank" rel="noreferrer">
             {t('nav.home')}
@@ -88,11 +68,20 @@ export default function Navbar() {
             {t('nav.services')}
             <span className="text-blue-400 text-xs">▾</span>
           </span>
-          <span className="text-sm font-semibold text-slate-700 dark:text-white px-2 py-1 flex items-center gap-1">
+          <span className="text-sm font-semibold text-slate-700 dark:text-white px-2 py-1">
             {t('nav.contact')}
-            <span className="h-2 w-2 rounded-full bg-red-500" title="Notifications" />
           </span>
         </nav>
+        {user && onMenuToggle ? (
+          <button
+            type="button"
+            onClick={onMenuToggle}
+            className="rounded-lg border border-slate-200 p-2 text-slate-700 md:hidden dark:border-slate-700 dark:text-slate-200"
+            aria-label={t('layout.menuNav')}
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        ) : null}
         {user && (
           <nav className="flex items-center gap-1 text-slate-600 dark:text-slate-300">
             <NavLink to="/dashboard" className={linkClass} title={t('nav.dashboard')}>
@@ -107,6 +96,7 @@ export default function Navbar() {
             <NavLink to="/settings" className={linkClass} title={t('nav.settings')}>
               <Settings className="h-5 w-5" />
             </NavLink>
+            <NotificationDropdown />
             <button
               type="button"
               onClick={handleLogout}
@@ -121,11 +111,13 @@ export default function Navbar() {
           type="button"
           onClick={toggleTheme}
           className="rounded-full border border-slate-200 bg-white p-2 text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-          title={isDark ? 'Passer en mode clair' : 'Passer en mode sombre'}
+          title={isDark ? t('layout.themeLight') : t('layout.themeDark')}
         >
           {isDark ? <Sun className="h-4 w-4 text-amber-300" /> : <Moon className="h-4 w-4 text-blue-600" />}
         </button>
-        <LangFlags lang={lang} setLang={setLang} />
+        <div className="border-l border-slate-200 pl-3 dark:border-slate-700">
+          <LanguageSelect compact />
+        </div>
       </div>
     </header>
   );

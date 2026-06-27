@@ -4,6 +4,7 @@ import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../../api/client.js';
 import { useApp } from '../../context/AppContext.jsx';
+import { useI18n } from '../../context/I18nContext.jsx';
 import AuthBackground from '../../components/auth/AuthBackground.jsx';
 import AuthCard from '../../components/auth/AuthCard.jsx';
 import PasswordStrength from '../../components/auth/PasswordStrength.jsx';
@@ -15,6 +16,7 @@ import { Select } from '../../components/ui/select.jsx';
 export default function SignupPage() {
   const nav = useNavigate();
   const { refreshMe } = useApp();
+  const { t } = useI18n();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,7 +31,7 @@ export default function SignupPage() {
 
   const blurConfirm = () => {
     if (confirmPassword && password !== confirmPassword) {
-      setFieldErrors((f) => ({ ...f, confirm: 'Les mots de passe ne correspondent pas.' }));
+      setFieldErrors((f) => ({ ...f, confirm: t('auth.passwordMismatch') }));
     } else setFieldErrors((f) => ({ ...f, confirm: undefined }));
   };
 
@@ -37,7 +39,7 @@ export default function SignupPage() {
     e.preventDefault();
     setError('');
     if (password !== confirmPassword) {
-      setError('Les mots de passe ne correspondent pas.');
+      setError(t('auth.passwordMismatch'));
       setShake(true);
       setTimeout(() => setShake(false), 500);
       return;
@@ -53,15 +55,19 @@ export default function SignupPage() {
       });
       if (data.requiresOtp) {
         sessionStorage.setItem('mecal_pending_email', data.email);
-        toast.success('Compte créé — vérifiez votre e-mail');
+        toast.success(t('auth.toastSignupOtp'));
         nav('/verify-otp', { state: { email: data.email } });
+      } else if (data.requiresApproval) {
+        sessionStorage.setItem('mecal_pending_email', data.email);
+        toast.success(t('auth.toastSignupPending'));
+        nav('/pending-approval', { state: { email: data.email, message: data.message } });
       } else {
         await refreshMe();
-        toast.success('Compte créé');
+        toast.success(t('auth.toastSignupOk'));
         nav('/dashboard', { replace: true });
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Erreur lors de l’inscription');
+      setError(err.response?.data?.message || t('auth.errorSignup'));
       setShake(true);
       setTimeout(() => setShake(false), 500);
     } finally {
@@ -71,28 +77,23 @@ export default function SignupPage() {
 
   return (
     <AuthBackground>
-      <AuthCard title="Créer un compte" description="Rejoignez M-ECAL — RDC">
-        <form
-          onSubmit={submit}
-          className={`space-y-4 ${shake ? 'animate-shake' : ''}`}
-        >
+      <AuthCard title={t('auth.signupTitle')} description={t('auth.signupDesc')}>
+        <form onSubmit={submit} className={`space-y-4 ${shake ? 'animate-shake' : ''}`}>
           {error && (
-              <p
-                className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-center text-sm text-red-200"
-              >
-                {error}
-              </p>
-            )}
+            <p className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-center text-sm text-red-200">
+              {error}
+            </p>
+          )}
           <div className="space-y-2">
-            <Label htmlFor="name">Nom complet</Label>
+            <Label htmlFor="name">{t('auth.fullName')}</Label>
             <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="email">E-mail</Label>
+            <Label htmlFor="email">{t('auth.email')}</Label>
             <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Mot de passe</Label>
+            <Label htmlFor="password">{t('auth.password')}</Label>
             <div className="relative">
               <Input
                 id="password"
@@ -114,7 +115,7 @@ export default function SignupPage() {
             <PasswordStrength password={password} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="confirm">Confirmer le mot de passe</Label>
+            <Label htmlFor="confirm">{t('auth.confirmPassword')}</Label>
             <div className="relative">
               <Input
                 id="confirm"
@@ -137,21 +138,20 @@ export default function SignupPage() {
             {fieldErrors.confirm && <p className="text-xs text-red-400">{fieldErrors.confirm}</p>}
           </div>
           <div className="space-y-2">
-            <Label>Rôle</Label>
+            <Label>{t('auth.role')}</Label>
             <Select value={role} onChange={(e) => setRole(e.target.value)}>
               <option value="Analyste">Analyste</option>
               <option value="Manager">Manager</option>
-              <option value="Admin">Admin</option>
             </Select>
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Créer mon compte
+            {t('auth.signup')}
           </Button>
           <p className="text-center text-sm text-slate-500">
-            Déjà un compte ?{' '}
+            {t('auth.hasAccount')}{' '}
             <Link to="/login" className="font-semibold text-blue-400 hover:underline">
-              Se connecter
+              {t('auth.signInLink')}
             </Link>
           </p>
         </form>

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../../api/client.js';
+import { useI18n } from '../../context/I18nContext.jsx';
 import AuthBackground from '../../components/auth/AuthBackground.jsx';
 import AuthCard from '../../components/auth/AuthCard.jsx';
 import { Button } from '../../components/ui/button.jsx';
@@ -10,6 +11,7 @@ import { Input } from '../../components/ui/input.jsx';
 import { Label } from '../../components/ui/label.jsx';
 
 export default function ForgotPasswordPage() {
+  const { t } = useI18n();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
@@ -25,34 +27,31 @@ export default function ForgotPasswordPage() {
       setLoading(false);
     }
     setDone(true);
-    toast.success('Si cet e-mail existe, vous recevrez un lien.');
+    toast.success(t('auth.toastForgotOk'));
   };
 
   return (
     <AuthBackground>
-      <AuthCard
-        title="Mot de passe oublié"
-        description="Nous vous enverrons un lien sécurisé si l’adresse est reconnue"
-      >
+      <AuthCard title={t('auth.forgotTitle')} description={t('auth.forgotDesc')}>
         {done ? (
           <p className="animate-fade-in rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-center text-sm text-emerald-100">
-            Si cet e-mail existe dans notre système, vous recevrez un lien de réinitialisation sous peu.
+            {t('auth.forgotSuccess')}
           </p>
         ) : (
           <form onSubmit={submit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email">E-mail</Label>
+              <Label htmlFor="email">{t('auth.email')}</Label>
               <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Envoyer le lien de réinitialisation
+              {t('auth.sendResetLink')}
             </Button>
           </form>
         )}
         <p className="mt-6 text-center text-sm">
           <Link to="/login" className="text-blue-400 hover:underline">
-            Retour à la connexion
+            {t('auth.backToLogin')}
           </Link>
         </p>
       </AuthCard>

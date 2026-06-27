@@ -4,6 +4,7 @@ import { Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../../api/client.js';
 import { useApp } from '../../context/AppContext.jsx';
+import { useI18n } from '../../context/I18nContext.jsx';
 import AuthBackground from '../../components/auth/AuthBackground.jsx';
 import AuthCard from '../../components/auth/AuthCard.jsx';
 import OTPInput from '../../components/auth/OTPInput.jsx';
@@ -13,6 +14,7 @@ export default function VerifyOTPPage() {
   const nav = useNavigate();
   const location = useLocation();
   const { refreshMe } = useApp();
+  const { t } = useI18n();
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
@@ -30,14 +32,14 @@ export default function VerifyOTPPage() {
 
   useEffect(() => {
     if (cooldown <= 0) return;
-    const t = setInterval(() => setCooldown((c) => (c > 0 ? c - 1 : 0)), 1000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => setCooldown((c) => (c > 0 ? c - 1 : 0)), 1000);
+    return () => clearInterval(timer);
   }, [cooldown]);
 
   const submit = async (e) => {
     e.preventDefault();
     if (otp.length !== 6) {
-      setError('Saisissez les 6 chiffres.');
+      setError(t('auth.otpHint'));
       setShake(true);
       setTimeout(() => setShake(false), 500);
       return;
@@ -48,10 +50,17 @@ export default function VerifyOTPPage() {
       await api.post('/api/auth/verify-otp', { email, code: otp });
       sessionStorage.removeItem('mecal_pending_email');
       await refreshMe();
-      toast.success('Vérification réussie');
+      toast.success(t('auth.toastVerifyOk'));
       nav('/dashboard', { replace: true });
     } catch (err) {
-      setError(err.response?.data?.message || 'Code invalide');
+      if (err.response?.data?.code === 'PENDING_APPROVAL') {
+        sessionStorage.removeItem('mecal_pending_email');
+        nav('/pending-approval', {
+          state: { email, message: err.response.data.message }
+        });
+        return;
+      }
+      setError(err.response?.data?.message || t('auth.errorInvalidCode'));
       setShake(true);
       setTimeout(() => setShake(false), 500);
     } finally {
@@ -63,19 +72,16 @@ export default function VerifyOTPPage() {
     if (cooldown > 0 || !email) return;
     try {
       await api.post('/api/auth/resend-otp', { email });
-      toast.success('Nouveau code envoyé');
+      toast.success(t('auth.toastResendOk'));
       setCooldown(60);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Impossible d’envoyer le code');
+      toast.error(err.response?.data?.message || t('auth.errorResend'));
     }
   };
 
   return (
     <AuthBackground>
-      <AuthCard
-        title="Vérification en deux étapes"
-        description="Un code a été envoyé à votre adresse e-mail"
-      >
+      <AuthCard title={t('auth.verifyTitle')} description={t('auth.verifyDesc')}>
         <form onSubmit={submit} className={`space-y-6 ${shake ? 'animate-shake' : ''}`}>
           <p className="text-center text-sm text-slate-400">{email}</p>
           {error && (
@@ -86,7 +92,7 @@ export default function VerifyOTPPage() {
           <OTPInput value={otp} onChange={setOtp} disabled={loading} error={Boolean(error)} />
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Vérifier
+            {t('auth.verify')}
           </Button>
           <div className="text-center text-sm">
             <button
@@ -97,7 +103,9 @@ export default function VerifyOTPPage() {
                 cooldown > 0 ? 'cursor-not-allowed text-slate-600' : 'text-blue-400 hover:underline'
               }`}
             >
-              {cooldown > 0 ? `Renvoyer le code (${cooldown}s)` : 'Renvoyer le code'}
+              {cooldown > 0
+                ? t('auth.resendCooldown', { seconds: cooldown })
+                : t('auth.resendCode')}
             </button>
           </div>
         </form>
