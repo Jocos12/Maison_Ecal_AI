@@ -6,13 +6,15 @@ import FilterBar from '../components/opportunities/FilterBar.jsx';
 import OpportunityList from '../components/opportunities/OpportunityList.jsx';
 import OpportunityModal from '../components/opportunities/OpportunityModal.jsx';
 import { api } from '../api/client.js';
+import toast from 'react-hot-toast';
+import { getViewedOpportunityIds, markOpportunityViewed } from '../utils/opportunityUrgency.js';
 
 export default function Opportunities() {
   const { t } = useI18n();
   const [searchParams, setSearchParams] = useSearchParams();
   const [category, setCategory] = useState('');
   const [search, setSearch] = useState('');
-  const [sort, setSort] = useState('recent');
+  const [sort, setSort] = useState('relevance');
   const [source, setSource] = useState('');
   const [country, setCountry] = useState('');
   const [ville, setVille] = useState('');
@@ -28,6 +30,8 @@ export default function Opportunities() {
   });
   const [page, setPage] = useState(1);
   const [modal, setModal] = useState(null);
+  const [appliedIds, setAppliedIds] = useState(() => new Set());
+  const [viewedCount, setViewedCount] = useState(() => getViewedOpportunityIds().length);
 
   const params = useMemo(
     () => ({
@@ -40,7 +44,7 @@ export default function Opportunities() {
       ...(status === 'new' ? { isNew: true } : {}),
       ...(status === 'urgent' ? { isUrgent: true } : {}),
       ...(search ? { search } : {}),
-      sort: sort === 'recent' ? undefined : sort
+      sort
     }),
     [page, category, source, ville, selectedCities, country, status, search, sort]
   );
@@ -48,7 +52,19 @@ export default function Opportunities() {
   const { items, total, pages, loading, reload } = useOpportunities(params);
 
   useEffect(() => {
-    api.get('/api/sources').then(({ data }) => setSources(data)).catch(() => {});
+    api.get('/api/sources').then(({ data }) => setSources(Array.isArray(data) ? data : data.sources || [])).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    api
+      .get('/api/applications')
+      .then(({ data }) => {
+        const ids = new Set(
+          (data || []).map((a) => String(a.opportunity?._id || a.opportunity)).filter(Boolean)
+        );
+        setAppliedIds(ids);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -73,10 +89,53 @@ export default function Opportunities() {
     })();
   }, [searchParams, setSearchParams]);
 
+  // Voice / deep-link filters (additive — does not change default empty behavior)
+  useEffect(() => {
+    const q = searchParams.get('search');
+    const cat = searchParams.get('category');
+    const v = searchParams.get('ville');
+    const c = searchParams.get('country');
+    const st = searchParams.get('status');
+    const fit = searchParams.get('fit');
+    if (q != null) setSearch(q);
+    if (cat != null) setCategory(cat);
+    if (v != null) setVille(v);
+    if (c != null) setCountry(c);
+    if (st != null) setStatus(st);
+    if (fit === 'mecal' && (q == null || q === '')) {
+      setSearch((prev) => prev || 'logistique');
+    }
+    if (q != null || cat != null || v != null || c != null || st != null || fit != null) {
+      setPage(1);
+    }
+  }, [searchParams]);
+
   const onOpen = (opp) => {
+    markOpportunityViewed(opp._id);
+    setViewedCount(getViewedOpportunityIds().length);
     setModal(opp);
     setSearchParams({ id: opp._id });
   };
+
+  const onQuickApply = async (opp) => {
+    try {
+      const { data, status } = await api.post('/api/applications', {
+        opportunity: opp._id,
+        status: 'draft',
+        notes: `Candidature brouillon — ${opp.title}`
+      });
+      setAppliedIds((prev) => new Set([...prev, String(opp._id)]));
+      toast.success(
+        data?.alreadyExisted || status === 200
+          ? t('opportunities.applicationExists')
+          : t('opportunities.applicationCreated')
+      );
+    } catch (e) {
+      toast.error(e.response?.data?.message || t('opportunities.applicationError'));
+    }
+  };
+
+  const untreated = Math.max(0, total - appliedIds.size);
 
   const onClose = () => {
     setModal(null);
@@ -84,13 +143,27 @@ export default function Opportunities() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="page-shell space-y-6">
       <section className="mecal-hero-dashboard relative overflow-hidden rounded-3xl px-6 py-7 text-white shadow-xl md:px-8">
         <div className="pointer-events-none absolute -right-16 top-0 h-40 w-40 rounded-full bg-cyan-400/20 blur-3xl" />
         <h1 className="mecal-title-shine text-2xl font-bold tracking-tight md:text-3xl">
           {t('opportunities.title')}
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-blue-100/90">{t('opportunities.subtitle')}</p>
+        <div className="mt-4 flex flex-wrap gap-2 text-xs">
+          <span className="rounded-full bg-white/15 px-3 py-1 font-semibold">
+            {t('opportunities.counterActive', { count: total })}
+          </span>
+          <span className="rounded-full bg-white/15 px-3 py-1 font-semibold">
+            {t('opportunities.counterApplied', { count: appliedIds.size })}
+          </span>
+          <span className="rounded-full bg-white/15 px-3 py-1 font-semibold">
+            {t('opportunities.counterViewed', { count: viewedCount })}
+          </span>
+          <span className="rounded-full bg-amber-400/90 px-3 py-1 font-bold text-slate-900">
+            {t('opportunities.counterUntreated', { count: untreated })}
+          </span>
+        </div>
       </section>
       <FilterBar
         category={category}
@@ -132,7 +205,17 @@ export default function Opportunities() {
         viewMode={viewMode}
         onViewMode={setViewMode}
       />
-      {loading ? <p className="text-slate-500">{t('common.loading')}</p> : <OpportunityList items={items} onOpen={onOpen} viewMode={viewMode} />}
+      {loading ? (
+        <p className="text-slate-500">{t('common.loading')}</p>
+      ) : (
+        <OpportunityList
+          items={items}
+          onOpen={onOpen}
+          onQuickApply={onQuickApply}
+          appliedIds={appliedIds}
+          viewMode={viewMode}
+        />
+      )}
       {pages > 1 && (
         <div className="flex justify-center gap-2 pt-4">
           <button
@@ -157,7 +240,20 @@ export default function Opportunities() {
         </div>
       )}
       {modal && (
-        <OpportunityModal opp={modal} onClose={onClose} onCreated={reload} />
+        <OpportunityModal
+          opp={modal}
+          onClose={onClose}
+          onCreated={() => {
+            reload();
+            api.get('/api/applications').then(({ data }) => {
+              setAppliedIds(
+                new Set(
+                  (data || []).map((a) => String(a.opportunity?._id || a.opportunity)).filter(Boolean)
+                )
+              );
+            });
+          }}
+        />
       )}
     </div>
   );

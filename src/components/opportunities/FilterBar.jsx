@@ -61,8 +61,10 @@ export default function FilterBar({
           className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-white"
         >
           <option value="">Toutes sources</option>
-          {sources.map((s) => (
-            <option key={s.key} value={s.scraperKey || s.key}>
+          {sources
+            .filter((s) => s.scraperKey)
+            .map((s) => (
+            <option key={s.key} value={(s.scraperKey || '').replace(/Veille$/i, '')}>
               {s.name}
             </option>
           ))}
@@ -99,9 +101,9 @@ export default function FilterBar({
           onChange={(e) => onSort(e.target.value)}
           className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-white"
         >
+          <option value="relevance">{t('opportunities.sortPriority')}</option>
           <option value="recent">{t('opportunities.sortRecent')}</option>
           <option value="deadline">{t('opportunities.sortDeadline')}</option>
-          <option value="relevance">Pertinence</option>
           <option value="platform">{t('opportunities.sortPlatform')}</option>
         </select>
         <div className="grid grid-cols-2 gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-600 dark:bg-slate-800">

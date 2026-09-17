@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Bell } from 'lucide-react';
+import { api } from '../../api/client.js';
 import {
   getNotifications,
   getUnreadCount,
@@ -8,6 +9,7 @@ import {
   markRead
 } from '../../utils/notificationStore.js';
 import { syncAppNotifications } from '../../utils/syncAppNotifications.js';
+import { requestMatchBrowserPermission } from '../../utils/pollMatchAlerts.js';
 
 export default function NotificationDropdown() {
   const [open, setOpen] = useState(false);
@@ -45,7 +47,10 @@ export default function NotificationDropdown() {
     <div className="relative" ref={ref}>
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          setOpen((v) => !v);
+          requestMatchBrowserPermission().catch(() => {});
+        }}
         className="relative rounded-full border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
         title="Notifications"
         aria-label="Notifications"
@@ -80,6 +85,9 @@ export default function NotificationDropdown() {
                     to={n.href || '#'}
                     onClick={() => {
                       markRead(n.id);
+                      if (String(n.id).startsWith('match-')) {
+                        api.patch(`/api/notifications/${String(n.id).slice(6)}/read`).catch(() => {});
+                      }
                       refresh();
                       setOpen(false);
                     }}

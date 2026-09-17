@@ -1,9 +1,17 @@
-import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useI18n } from '../../context/I18nContext.jsx';
 import { ExternalLink } from 'lucide-react';
 import ScoreRing from '../ui/ScoreRing.jsx';
 import { CATEGORY_BADGE, platformPillClass } from '../../utils/opportunityUi.js';
+import { SourceGlyph } from '../../utils/sourceIcons.jsx';
+import { formatDeadlineDate, isOpportunityNew } from '../../utils/opportunityDates.js';
+import {
+  deadlineUrgency,
+  deadlineTextClass,
+  scorePercent,
+  urgencyBadgeClass
+} from '../../utils/opportunityUrgency.js';
+import { isGenericKeywordJustification } from '../../utils/scanRelevanceDisplay.js';
 
 const cityColors = {
   Bukavu: 'bg-green-500 text-white',
@@ -14,36 +22,28 @@ const cityColors = {
   RDC: 'bg-slate-600 text-white'
 };
 
-function isRecent(createdAt) {
-  if (!createdAt) return false;
-  return Date.now() - new Date(createdAt).getTime() < 48 * 60 * 60 * 1000;
-}
-
-function isClosingSoon(deadline) {
-  if (!deadline) return false;
-  const days = (new Date(deadline) - new Date()) / (1000 * 60 * 60 * 24);
-  return days >= 0 && days <= 7;
-}
-
 function needsLocationReview(opp) {
   return opp?.locationStatus === 'a_verifier' || opp?.aiAnalysis?.pays_confirme_rdc === 'a_verifier';
 }
 
-function scorePercent(opp) {
-  if (opp.aiAnalysis?.score != null) {
-    return opp.aiAnalysis.score > 1 ? Math.round(opp.aiAnalysis.score) : Math.round(opp.aiAnalysis.score * 100);
-  }
-  if (opp.aiRelevanceScore != null) return Math.round(opp.aiRelevanceScore * 100);
-  return 0;
-}
-
-export default function OpportunityCard({ opp, onOpen, compact = false, index = 0 }) {
+export default function OpportunityCard({
+  opp,
+  onOpen,
+  onQuickApply,
+  hasApplication = false,
+  compact = false,
+  index = 0
+}) {
   const { t, lang } = useI18n();
   const locale = lang === 'fr' ? fr : undefined;
-  const showNew = opp.isNew || isRecent(opp.createdAt);
-  const showUrgent = opp.isUrgent || isClosingSoon(opp.deadline);
+  const showNew = isOpportunityNew(opp);
+  const urgency = deadlineUrgency(opp.deadline);
+  const showUrgent = opp.isUrgent || urgency.level === 'critical' || urgency.level === 'soon';
   const showVerify = needsLocationReview(opp);
   const pct = scorePercent(opp);
+  const hasScore = opp.aiAnalysis?.score != null || opp.aiRelevanceScore != null;
+  const justification = opp.aiAnalysis?.justification;
+  const showJustification = justification && !isGenericKeywordJustification(justification);
   const catBadge = CATEGORY_BADGE[opp.category] || CATEGORY_BADGE.assistance;
   const platformClass = platformPillClass(opp.platform);
 
@@ -63,16 +63,38 @@ export default function OpportunityCard({ opp, onOpen, compact = false, index = 
           </h3>
           {pct > 0 ? <ScoreRing value={pct} /> : null}
         </div>
+        {hasScore ? (
+          <p className="text-xs font-semibold text-blue-800 dark:text-blue-200">
+            {t('opportunities.relevanceForMecal', { pct })}
+          </p>
+        ) : null}
+        {showJustification ? (
+          <p className="line-clamp-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+            {justification}
+          </p>
+        ) : null}
 
         <div className="flex flex-wrap gap-1.5">
           {showNew ? (
-            <span className="mecal-pulse-badge rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-bold uppercase text-white">
+            <span className="rounded-full bg-sky-500 px-2 py-0.5 text-[10px] font-bold uppercase text-white">
               {t('opportunities.new')}
             </span>
           ) : null}
+          {opp.isRecommended ? (
+            <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold uppercase text-white">
+              {t('opportunities.recommended')}
+            </span>
+          ) : null}
           {showUrgent ? (
-            <span className="rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-bold uppercase text-white">
-              {t('opportunities.urgent')}
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${urgencyBadgeClass(urgency.level === 'soon' ? 'soon' : 'critical')}`}>
+              {urgency.level === 'soon'
+                ? t('opportunities.closingSoon', { count: urgency.days })
+                : t('opportunities.urgent')}
+            </span>
+          ) : null}
+          {hasApplication ? (
+            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold uppercase text-blue-800">
+              {t('opportunities.hasApplication')}
             </span>
           ) : null}
           {showVerify ? (
@@ -93,7 +115,8 @@ export default function OpportunityCard({ opp, onOpen, compact = false, index = 
           <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${catBadge}`}>
             {t(`opportunities.${opp.category}`)}
           </span>
-          <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ring-1 ${platformClass}`}>
+          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ring-1 ${platformClass}`}>
+            <SourceGlyph source={opp.platform} platform={opp.platform} className="h-3 w-3" />
             {opp.platform}
           </span>
         </div>
@@ -108,11 +131,40 @@ export default function OpportunityCard({ opp, onOpen, compact = false, index = 
           compact ? 'md:border-t-0 md:pt-0 md:pl-4 md:border-l' : 'mt-auto'
         }`}
       >
-        <span className={showUrgent ? 'font-semibold text-red-600' : 'text-slate-500'}>
-          {t('opportunities.deadline')}:{' '}
-          {opp.deadline ? format(new Date(opp.deadline), 'dd MMM yyyy', { locale }) : '—'}
+        <span className={deadlineTextClass(urgency.level)}>
+          {t('opportunities.deadline')}: {formatDeadlineDate(opp, locale, t)}
         </span>
-        <ExternalLink className="h-4 w-4 text-slate-400 transition group-hover:text-blue-600" />
+        <div className="flex items-center gap-2">
+          {pct >= 70 && onQuickApply && !hasApplication ? (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => {
+                e.stopPropagation();
+                onQuickApply(opp);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.stopPropagation();
+                  onQuickApply(opp);
+                }
+              }}
+              className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-bold uppercase text-white hover:bg-blue-500"
+            >
+              {t('opportunities.quickApply')}
+            </span>
+          ) : null}
+        {opp.sourceUrl && !opp.deadline ? (
+          <span
+            className="max-w-[9rem] truncate text-[10px] font-semibold text-blue-600 group-hover:underline"
+            title={t('opportunities.verifyOnSource')}
+          >
+            {t('opportunities.verifyOnSource')}
+          </span>
+        ) : (
+          <ExternalLink className="h-4 w-4 text-slate-400 transition group-hover:text-blue-600" />
+        )}
+        </div>
       </div>
     </button>
   );

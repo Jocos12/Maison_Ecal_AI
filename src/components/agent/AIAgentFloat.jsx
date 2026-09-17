@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Bot } from 'lucide-react';
 import AIAgentModal from './AIAgentModal.jsx';
 import { useI18n } from '../../context/I18nContext.jsx';
 
@@ -30,11 +31,11 @@ export default function AIAgentFloat() {
       <button
         type="button"
         onClick={() => setIsChatOpen(true)}
-        className="group fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-purple-600 to-blue-600 shadow-2xl transition-all duration-200 hover:scale-110"
+        className="group fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#1e3a5f] to-blue-600 shadow-2xl transition-all duration-200 hover:scale-110"
         aria-label={t('agent.openLabel')}
       >
-        <span className="text-2xl">🤖</span>
-        <span className="absolute inset-0 animate-ping rounded-full bg-purple-400 opacity-20" />
+        <Bot className="relative z-10 h-7 w-7 text-white" strokeWidth={2} aria-hidden />
+        <span className="absolute inset-0 animate-ping rounded-full bg-blue-400 opacity-20" />
         <span className="pointer-events-none absolute right-16 whitespace-nowrap rounded-lg bg-gray-900 px-3 py-1.5 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
           {t('agent.tooltip')}
         </span>

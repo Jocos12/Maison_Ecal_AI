@@ -106,7 +106,15 @@ export async function syncAppNotifications() {
       }
     }
 
-    if (stats.lastScrapeAt && stats.lastScrapeAt !== prev.lastScrapeAt && prev.lastScrapeAt) {
+    if (stats.scrapeFailed) {
+      upsertNotification({
+        id: `scrape-error-${stats.scrapeWatch?.lastErrorAt || stats.lastScrapeAt}`,
+        title: 'Collecte en erreur',
+        body: stats.scrapeWatch?.lastErrorMessage || 'Un run de veille s’est terminé en échec.',
+        href: '/dashboard',
+        type: 'veille-error'
+      });
+    } else if (stats.lastScrapeAt && stats.lastScrapeAt !== prev.lastScrapeAt && prev.lastScrapeAt) {
       upsertNotification({
         id: `scrape-${stats.lastScrapeAt}`,
         title: 'Veille mise à jour',

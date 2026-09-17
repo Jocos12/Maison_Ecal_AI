@@ -8,6 +8,7 @@ import {
   ClipboardList,
   MessageSquare,
   FolderTree,
+  Filter,
   Globe2,
   LayoutDashboard,
   Link2,
@@ -38,6 +39,7 @@ function buildNavGroups(t, pendingCount = 0) {
     {
       titleKey: 'sidebar.groups.watch',
       items: [
+        { to: '/strict-mecal', labelKey: 'sidebar.strictMecal', icon: Filter, color: 'text-teal-400' },
         { to: '/sources', labelKey: 'sidebar.sources', icon: Globe2, color: 'text-cyan-400' },
         { to: '/categories', labelKey: 'sidebar.categories', icon: FolderTree, color: 'text-violet-400' },
         { to: '/agent', labelKey: 'sidebar.agent', icon: Bot, color: 'text-fuchsia-400', badge: 'actif' }

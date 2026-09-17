@@ -1,10 +1,18 @@
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Bot, Loader2, Play, RefreshCw, Search } from 'lucide-react';
+import { BarChart3, Bot, History, Loader2, Play, RefreshCw, Search, Settings } from 'lucide-react';
 import { api } from '../api/client.js';
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../context/I18nContext.jsx';
 import AgentSkipDetailPanel from '../components/agent/AgentSkipDetailPanel.jsx';
+import { AiProviderMark } from '../components/agent/AiProviderMark.jsx';
+
+const AGENT_TABS = [
+  { id: 'search', label: 'Recherche', icon: Search },
+  { id: 'results', label: 'Résultats', icon: BarChart3 },
+  { id: 'config', label: 'Configuration', icon: Settings },
+  { id: 'history', label: 'Historique', icon: History }
+];
 
 const SKIP_REASON_LABELS = {
   not_mecal_service: 'Hors services M-ECAL (6 catégories logistiques)',
@@ -16,7 +24,8 @@ const SKIP_REASON_LABELS = {
   needs_ai_no_keys: 'Analyse IA requise mais aucune clé configurée',
   no_category: 'Catégorie M-ECAL non identifiée',
   duplicate: 'Doublon déjà en base',
-  missing_fields: 'Titre ou lien source manquant'
+  missing_fields: 'Titre ou lien source manquant',
+  not_a_tender: 'Bulletin / rapport (pas un appel d’offres)'
 };
 
 function formatSkipReasons(skipReasons) {
@@ -124,22 +133,20 @@ export default function Agent() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="page-shell space-y-6">
       <div className="flex flex-wrap gap-2">
-        {[
-          ['search', '🔍 Recherche'],
-          ['results', '📊 Résultats'],
-          ['config', '⚙️ Configuration'],
-          ['history', '📜 Historique']
-        ].map(([id, label]) => (
+        {AGENT_TABS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             type="button"
             onClick={() => setTab(id)}
-            className={`rounded-xl px-4 py-2 text-sm font-bold transition ${
-              tab === id ? 'bg-blue-600 text-white' : 'bg-white text-slate-700 dark:bg-slate-900 dark:text-slate-300'
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition ${
+              tab === id
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
+                : 'bg-white text-slate-700 hover:border-blue-300 dark:bg-slate-900 dark:text-slate-300'
             }`}
           >
+            <Icon className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
             {label}
           </button>
         ))}
@@ -186,19 +193,25 @@ export default function Agent() {
           </div>
           <div className="providers-grid">
             {[
-              ['claude', 'Claude', '🟣'],
-              ['groq', 'Groq', '⚡'],
-              ['gemini', 'Gemini', '🔵']
-            ].map(([id, label, icon]) => {
+              ['claude', 'Claude'],
+              ['groq', 'Groq'],
+              ['gemini', 'Gemini']
+            ].map(([id, label]) => {
               const provider = aiStatus.providers?.[id] || {};
+              const statusLabel = provider.ready
+                ? 'Actif'
+                : provider.configured
+                  ? 'Cooldown'
+                  : 'Non configuré';
               return (
                 <div key={id} className={`provider-card ${provider.ready ? 'ok' : 'fail'}`}>
-                  <span className="provider-icon">{icon}</span>
+                  <AiProviderMark id={id} />
                   <span className="provider-name">{label}</span>
-                  <span className="provider-status">
-                    {provider.ready ? 'Actif' : provider.configured ? 'Cooldown' : 'Non configuré'}
+                  <span className={`provider-status-row ${provider.ready ? 'is-on' : 'is-off'}`}>
+                    <span className="provider-dot" />
+                    {statusLabel}
                   </span>
-                  {provider.failCount > 0 && <small>{provider.failCount} échec(s)</small>}
+                  {provider.failCount > 0 ? <small>{provider.failCount} échec(s)</small> : null}
                 </div>
               );
             })}
@@ -236,7 +249,7 @@ export default function Agent() {
                 className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-100 disabled:opacity-60 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
               >
                 {reclassifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                Recalculer les opportunités existantes
+                Recalculer / rescorer les opportunités en base
               </button>
               <button
                 type="button"

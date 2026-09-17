@@ -1,21 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
-import { History } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Bot, Briefcase, Download, FileText, GraduationCap, GripHorizontal, History, Mail, Mic, MicOff, Paperclip, Pencil, Phone, Plus, RefreshCw, Sparkles, Upload, User, Volume2, VolumeX, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../../api/client.js';
-import { prepareCvUploadPayload } from '../../utils/extractCvText.js';
-import { downloadJobDocument } from '../../utils/downloadJobDocument.js';
 import {
   parseOfferIndex,
   summarizeApplications,
   truncateTitle,
-  wantsApplicationAnalysis,
   wantsApply,
   wantsCvCorrection,
   wantsCvOrLetter,
   wantsJobSearch,
-  wantsShowProfile
+  wantsShowProfile,
+  wantsVoiceAction
 } from '../../utils/agentIntents.js';
+import { prepareCvUploadPayload, CV_ACCEPT } from '../../utils/extractCvText.js';
+import { downloadJobDocument } from '../../utils/downloadJobDocument.js';
 import { defaultTargetJob, formatProfileSummary } from '../../utils/agentProfileUtils.js';
 import {
   filterSourcesOpportunities,
@@ -23,24 +23,28 @@ import {
   opportunityToJob
 } from '../../utils/sourcesFilterUtils.js';
 import {
-  answerFromAgentContext,
   answerOpportunityCount,
   answerSystemQuestion,
   buildSystemContext,
-  formatSystemContextForAI,
-  wantsBestOfferOnPage,
-  wantsOpportunityCount,
-  wantsSystemQuestion
+  formatSystemContextForAI
 } from '../../utils/agentSystemKnowledge.js';
-import { RichTextContent } from '../../utils/agentRichText.jsx';
+import { AgentMarkdown } from '../../utils/agentMarkdown.jsx';
 import {
   AGENT_ACTIVE_CONV_KEY,
   mapServerMessages
 } from '../../utils/agentConversationUtils.js';
 import { useI18n } from '../../context/I18nContext.jsx';
 import { useUiLocale } from '../../hooks/useUiLocale.js';
+import { useSpeechRecognition } from '../../hooks/useSpeechRecognition.js';
+import { useAgentTts } from '../../hooks/useAgentTts.js';
+import { useDraggableWidget } from '../../hooks/useDraggableWidget.js';
+import { useVoiceMode } from '../../context/VoiceModeContext.jsx';
+import { detectSpeechLanguage } from '../../utils/detectSpeechLanguage.js';
 import { getAgentStarter, getProviderLabel, getQuickActions } from '../../utils/agentUiHelpers.js';
+import { planVoiceToolExecution } from '../../utils/voiceToolExecutor.js';
 import AgentHistoryPanel from './AgentHistoryPanel.jsx';
+import DegradedModeBanner from './DegradedModeBanner.jsx';
+import { useAiDegradedMode } from '../../hooks/useAiDegradedMode.js';
 
 function DownloadPdfButton({ document: doc, t }) {
   const [loading, setLoading] = useState(false);
@@ -63,21 +67,26 @@ function DownloadPdfButton({ document: doc, t }) {
       }}
       className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:opacity-90 disabled:opacity-50"
     >
-      📥 {loading ? t('agent.downloading') : t('agent.downloadPdf')}
+      <Download className="h-4 w-4" strokeWidth={2} aria-hidden />
+      {loading ? t('agent.downloading') : t('agent.downloadPdf')}
     </button>
   );
 }
 
-function MessageContent({ content, document: docMeta, provider, isUser, t }) {
+function MessageContent({ content, document: docMeta, provider, isUser, streaming, t }) {
   const providerLabel = getProviderLabel(t, provider);
 
   return (
     <div>
-      <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">
-        <RichTextContent text={content} invertLinks={isUser} />
-      </pre>
+      {isUser ? (
+        <pre className="whitespace-pre-wrap font-sans text-[13px] leading-relaxed">
+          {content}
+        </pre>
+      ) : (
+        <AgentMarkdown text={content || (streaming ? '…' : '')} />
+      )}
       <DownloadPdfButton document={docMeta} t={t} />
-      {providerLabel ? (
+      {providerLabel && !streaming ? (
         <p className="mt-2 text-[10px] font-medium uppercase tracking-wide text-slate-400">
           {t('agent.via')} {providerLabel}
         </p>
@@ -88,8 +97,11 @@ function MessageContent({ content, document: docMeta, provider, isUser, t }) {
 
 export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsumed }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const { t, lang } = useI18n();
+  const { degraded, noteProvider } = useAiDegradedMode();
   const { dateLocale } = useUiLocale();
+  const { setPendingApply } = useVoiceMode();
   const starter = getAgentStarter(t);
   const quickActions = getQuickActions(t);
   const [messages, setMessages] = useState([{ role: 'assistant', content: starter }]);
@@ -109,10 +121,37 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
   const [conversations, setConversations] = useState([]);
   const [activeConversationId, setActiveConversationId] = useState(null);
   const [convReady, setConvReady] = useState(false);
+  const [speechLang, setSpeechLang] = useState(() => (lang === 'en' ? 'en' : 'fr'));
+  const [micError, setMicError] = useState(null);
   const bottomRef = useRef(null);
   const messagesRef = useRef([]);
   const activeConversationIdRef = useRef(null);
   const persistTimerRef = useRef(null);
+  const streamTimerRef = useRef(null);
+  const cvFileRef = useRef(null);
+  const tts = useAgentTts();
+  const drag = useDraggableWidget({
+    width: showHistory ? 896 : 672,
+    height: Math.min(window.innerHeight * 0.75, 720)
+  });
+
+  const handleMicResult = useCallback((text, isFinal) => {
+    setInput(text);
+    setMicError(null);
+    if (isFinal) {
+      setSpeechLang(detectSpeechLanguage(text, lang));
+    }
+  }, [lang]);
+
+  const handleMicError = useCallback((code) => {
+    setMicError(code);
+  }, []);
+
+  const speech = useSpeechRecognition({
+    lang: speechLang,
+    onResult: handleMicResult,
+    onError: handleMicError
+  });
 
   const cvData = profile?.fullName
     ? {
@@ -301,6 +340,7 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
     initConversations();
     return () => {
       if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+      if (streamTimerRef.current) clearTimeout(streamTimerRef.current);
     };
   }, [initConversations]);
 
@@ -309,11 +349,48 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
   }, [messages]);
 
   const appendAssistant = (content, meta = {}) => {
-    setMessages((prev) => {
-      const next = [...prev, { role: 'assistant', content, ...meta, timestamp: new Date().toISOString() }];
-      schedulePersist(next);
-      return next;
-    });
+    if (meta.provider) noteProvider(meta.provider);
+    const full = String(content || '');
+    const shouldStream = meta.stream !== false && full.length > 60 && !meta.document;
+
+    if (!shouldStream) {
+      setMessages((prev) => {
+        const next = [...prev, { role: 'assistant', content: full, ...meta, timestamp: new Date().toISOString() }];
+        schedulePersist(next);
+        return next;
+      });
+      if (full) tts.speak(full).catch(() => {});
+      return;
+    }
+
+    const stamp = new Date().toISOString();
+    setIsTyping(false);
+    setMessages((prev) => [...prev, { role: 'assistant', content: '', streaming: true, ...meta, timestamp: stamp }]);
+
+    const chunks = full.split(/(\s+)/);
+    let acc = '';
+    let i = 0;
+    const tick = () => {
+      acc += chunks[i] || '';
+      i += 1;
+      const done = i >= chunks.length;
+      const shown = done ? full : acc;
+      setMessages((prev) => {
+        const next = [...prev];
+        const last = next[next.length - 1];
+        if (last?.role === 'assistant') {
+          next[next.length - 1] = { ...last, content: shown, streaming: !done };
+        }
+        if (done) schedulePersist(next);
+        return next;
+      });
+      if (!done) {
+        streamTimerRef.current = setTimeout(tick, 16);
+      } else if (full) {
+        tts.speak(full).catch(() => {});
+      }
+    };
+    tick();
   };
 
   const systemCtx = () =>
@@ -507,26 +584,23 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
       return;
     }
 
-    try {
-      await api.post('/api/applications', {
-        opportunity: target._id,
-        status: 'submitted',
-        appliedDate: new Date().toISOString(),
-        notes: t('agent.applicationNotes')
-      });
-      const apps = await api.get('/api/applications');
-      setApplications(apps.data || []);
-      appendAssistant(
-        `${t('agent.applicationRecorded')}\n\n` +
-          `📌 **${truncateTitle(target.title)}**\n` +
-          `🏢 ${target.organization || target.platform}\n` +
-          `📍 ${target.ville || 'RDC'}\n\n` +
-          t('agent.jobsListFooter')
-      );
-      toast.success(t('agent.applicationCreated'));
-    } catch (e) {
-      appendAssistant(e.response?.data?.message || t('agent.applicationFailed'));
-    }
+    // WRITE action: stage only — never POST without ApplicationConfirmGate confirmation
+    setPendingApply({
+      offreId: target._id,
+      title: target.title,
+      organization: target.organization || target.platform,
+      ville: target.ville || target.city || 'RDC',
+      notes: t('agent.applicationNotes'),
+      awaitConfirmation: true,
+      source: 'chat'
+    });
+    appendAssistant(
+      `${t('agent.applyConfirmAsk')}\n\n` +
+        `📌 **${truncateTitle(target.title)}**\n` +
+        `🏢 ${target.organization || target.platform}\n` +
+        `📍 ${target.ville || 'RDC'}\n\n` +
+        t('agent.applyConfirmHint')
+    );
   };
 
   const handleApplicationAnalysis = () => {
@@ -614,7 +688,7 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
     const ranked = filterSourcesOpportunities(opportunities, {}).slice(0, 12);
     const jobs = ranked.map(opportunityToJob);
     const ctx = systemCtx();
-    const locale = lang;
+    const locale = detectSpeechLanguage(userText, lang);
     try {
       const { data } = await api.post('/api/job-assistant/rdc-offers/chat', {
         message: userText,
@@ -629,23 +703,39 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
         },
         history: history
           .filter((m) => m.role === 'user' || m.role === 'assistant')
-          .slice(-8)
+          .slice(-16)
           .map((m) => ({ role: m.role, content: m.content }))
       });
       appendAssistant(data.reply || data.message || t('agent.replyUnavailable'), {
-        provider: data.provider
+        provider: data.provider,
+        stream: true
       });
+      noteProvider(data.provider);
     } catch (e) {
-      const local =
-        answerFromAgentContext(userText, systemCtx()) ||
-        (wantsSystemQuestion(userText) ? answerSystemQuestion(userText, systemCtx()) : null) ||
-        (wantsOpportunityCount(userText) ? answerOpportunityCount(systemCtx()) : null);
-      appendAssistant(
-        local ||
-          e.response?.data?.message ||
-          t('agent.agentUnavailable'),
-        local ? { provider: 'local' } : undefined
-      );
+      appendAssistant(e.response?.data?.message || t('agent.agentUnavailable'));
+    }
+  };
+
+  const handleToolCommand = async (userText) => {
+    try {
+      const { data } = await api.post('/api/voice/command', { text: userText, locale: lang });
+      const effects = planVoiceToolExecution(data.actions || []);
+      for (const effect of effects) {
+        if (effect.type === 'navigate') navigate(effect.path);
+      }
+      if (data.createdApplication) {
+        window.dispatchEvent(new CustomEvent('mecal:applications-updated'));
+      }
+      appendAssistant(data.reply || t('voice.commandDone'));
+      if (tts.enabled) {
+        try {
+          await tts.speak(data.reply || t('voice.commandDone'), { lang });
+        } catch {
+          /* optional */
+        }
+      }
+    } catch (e) {
+      appendAssistant(e.response?.data?.message || t('voice.commandError'));
     }
   };
 
@@ -653,6 +743,9 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
     async (text) => {
       const userText = (text || input).trim();
       if (!userText || isTyping) return;
+      speech.stop();
+      tts.stop();
+      setSpeechLang(detectSpeechLanguage(userText, lang));
       setInput('');
 
       const history = [...messages, { role: 'user', content: userText, timestamp: new Date().toISOString() }];
@@ -661,25 +754,14 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
       setIsTyping(true);
 
       try {
-      const contextual = answerFromAgentContext(userText, systemCtx());
-      if (contextual) {
-        appendAssistant(contextual, { provider: 'local' });
-      } else if (wantsShowProfile(userText)) {
-        handleShowProfile();
-      } else if (wantsCvOrLetter(userText)) {
-        await handleCvOrLetter(userText);
-      } else if (wantsOpportunityCount(userText)) {
-        await handleOpportunityCount();
-      } else if (wantsBestOfferOnPage(userText)) {
-        handleBestOffer();
-      } else if (wantsSystemQuestion(userText)) {
-        handleSystemHelp(userText);
-      } else if (wantsApply(userText)) {
-          await handleApply(userText);
+        if (wantsShowProfile(userText)) {
+          handleShowProfile();
+        } else if (wantsCvOrLetter(userText) && !wantsApply(userText)) {
+          await handleCvOrLetter(userText);
+        } else if (wantsVoiceAction(userText) || wantsApply(userText)) {
+          await handleToolCommand(userText);
         } else if (/^(oui|ok|vas-y|go)$/i.test(userText.trim())) {
           await handleApply('postule pour la prochaine offre');
-        } else if (wantsApplicationAnalysis(userText)) {
-          handleApplicationAnalysis();
         } else if (wantsJobSearch(userText)) {
           await handleJobSearch();
         } else {
@@ -690,7 +772,7 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [input, isTyping, messages, applications, opportunities, profile]
+    [input, isTyping, messages, applications, opportunities, profile, lang, speech, tts]
   );
 
   useEffect(() => {
@@ -703,42 +785,124 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
   }, [seedPrompt, sendMessage, onSeedConsumed, convReady]);
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('agent.title')}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
+    <div className="pointer-events-none fixed inset-0 z-[100]">
       <div
-        className={`flex h-[75vh] w-full flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900 ${
-          showHistory ? 'max-w-4xl' : 'max-w-2xl'
+        ref={drag.panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('agent.title')}
+        className={`pointer-events-auto absolute flex h-[min(75vh,100dvh)] w-[min(42rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900 max-sm:!left-0 max-sm:!top-0 max-sm:h-[100dvh] max-sm:max-h-none max-sm:rounded-none max-sm:w-full ${
+          showHistory ? 'md:w-[min(56rem,calc(100vw-1rem))]' : ''
         }`}
+        style={{ left: drag.pos.x, top: drag.pos.y }}
       >
-        <div className="flex-shrink-0 bg-gradient-to-r from-purple-600 to-blue-600 px-4 py-3">
+        <input
+          ref={cvFileRef}
+          type="file"
+          className="hidden"
+          accept={CV_ACCEPT}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleCvUpload(file);
+            e.target.value = '';
+          }}
+        />
+        <div
+          className="flex-shrink-0 cursor-grab bg-gradient-to-r from-[#1e3a5f] via-blue-600 to-blue-700 px-4 py-3 active:cursor-grabbing"
+          onPointerDown={drag.onHandlePointerDown}
+          onPointerMove={drag.onHandlePointerMove}
+          onPointerUp={drag.onHandlePointerUp}
+          onPointerCancel={drag.onHandlePointerUp}
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-base">
-                🤖
+              <GripHorizontal className="h-4 w-4 text-white/70" aria-hidden />
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-white">
+                <Bot className="h-4 w-4" strokeWidth={2} aria-hidden />
               </div>
               <div>
                 <h2 className="text-sm font-semibold text-white">{t('agent.title')}</h2>
-                <p className="text-xs text-purple-200">● {t('agent.online')}</p>
+                <p className="text-xs text-blue-100">
+                  ● {degraded ? t('agent.degradedMode') : t('agent.online')}
+                </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-xl text-white/70 transition-colors hover:text-white"
-              aria-label={t('common.close')}
-            >
-              ✕
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => tts.setEnabled(!tts.enabled)}
+                className={`flex h-8 items-center gap-1 rounded-full px-2 text-xs transition-colors ${
+                  tts.enabled
+                    ? 'bg-white/25 text-white'
+                    : 'bg-white/10 text-white/80 hover:bg-white/20'
+                }`}
+                title={tts.enabled ? t('agent.ttsOn') : t('agent.ttsOff')}
+                aria-pressed={tts.enabled}
+              >
+                {tts.enabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
+                <span className="hidden sm:inline">
+                  {tts.enabled ? t('agent.ttsOnShort') : t('agent.ttsOffShort')}
+                </span>
+              </button>
+              {tts.enabled ? (
+                <>
+                  <select
+                    value={tts.voice}
+                    onChange={(e) => tts.setVoice(e.target.value)}
+                    className="h-8 max-w-[7.5rem] rounded-full border-0 bg-white/15 px-2 text-[11px] text-white outline-none"
+                    title={t('agent.ttsVoice')}
+                    aria-label={t('agent.ttsVoice')}
+                  >
+                    {tts.voices.map((v) => (
+                      <option key={v.id} value={v.id} className="text-slate-900">
+                        {t(v.labelKey)}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={tts.model}
+                    onChange={(e) => tts.setModel(e.target.value)}
+                    className="h-8 max-w-[6.5rem] rounded-full border-0 bg-white/15 px-2 text-[11px] text-white outline-none"
+                    title={t('agent.ttsModel')}
+                    aria-label={t('agent.ttsModel')}
+                  >
+                    {tts.models.map((v) => (
+                      <option key={v.id} value={v.id} className="text-slate-900">
+                        {t(v.labelKey)}
+                      </option>
+                    ))}
+                  </select>
+                  {tts.speaking ? (
+                    <button
+                      type="button"
+                      onClick={() => tts.stop()}
+                      className="h-8 rounded-full bg-white/20 px-2 text-[11px] text-white hover:bg-white/30"
+                    >
+                      {t('agent.ttsStop')}
+                    </button>
+                  ) : null}
+                </>
+              ) : null}
+              <button
+                type="button"
+                onClick={onClose}
+                className="grid h-8 w-8 place-items-center text-white/70 transition-colors hover:text-white"
+                aria-label={t('common.close')}
+              >
+                <X className="h-5 w-5" strokeWidth={2} />
+              </button>
+            </div>
           </div>
 
           <div className="scrollbar-none mt-2 flex gap-1.5 overflow-x-auto pb-0.5">
+            <button
+              type="button"
+              onClick={() => cvFileRef.current?.click()}
+              disabled={cvUploading}
+              className="flex flex-shrink-0 items-center gap-1 rounded-full bg-white/20 px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-white/30 disabled:opacity-50"
+            >
+              <Upload className="h-3 w-3" /> {t('agent.importCv')}
+            </button>
             {quickActions.map((action, idx) =>
               idx === 0 ? (
                 <div key={action.label} className="flex flex-shrink-0 items-center gap-0.5">
@@ -748,7 +912,8 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
                     disabled={docGenerating || !convReady}
                     className="flex flex-shrink-0 items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-xs text-white transition-colors hover:bg-white/25"
                   >
-                    {action.icon} {action.label}
+                    <action.icon className="h-3 w-3" strokeWidth={2} aria-hidden />
+                    {action.label}
                   </button>
                   <button
                     type="button"
@@ -770,32 +935,61 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
                   disabled={docGenerating || !convReady}
                   className="flex flex-shrink-0 items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-xs text-white transition-colors hover:bg-white/25"
                 >
-                  {action.icon} {action.label}
+                  <action.icon className="h-3 w-3" strokeWidth={2} aria-hidden />
+                  {action.label}
                 </button>
               )
             )}
           </div>
         </div>
 
-        <div className="flex min-h-0 flex-1">
+        <div className="relative flex min-h-0 flex-1">
           {showHistory ? (
-            <AgentHistoryPanel
-              conversations={conversations}
-              activeId={activeConversationId}
-              onSelect={selectConversation}
-              onNew={createNewConversation}
-              onDelete={deleteConversation}
-              onClose={() => setShowHistory(false)}
-            />
+            <>
+              <button
+                type="button"
+                className="absolute inset-0 z-10 bg-slate-900/20 md:hidden"
+                aria-label={t('agent.closeHistory')}
+                onClick={() => setShowHistory(false)}
+              />
+              <div className="absolute inset-y-0 left-0 z-20 h-full w-[min(88%,260px)] shadow-xl md:relative md:z-auto md:w-[260px] md:shadow-none">
+                <AgentHistoryPanel
+                  conversations={conversations}
+                  activeId={activeConversationId}
+                  onSelect={(id) => {
+                    selectConversation(id);
+                    if (window.matchMedia('(max-width: 767px)').matches) setShowHistory(false);
+                  }}
+                  onNew={createNewConversation}
+                  onDelete={deleteConversation}
+                  onClose={() => setShowHistory(false)}
+                />
+              </div>
+            </>
           ) : null}
 
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <DegradedModeBanner show={degraded} label={t('agent.degradedMode')} />
+        {cvMeta?.fileName && !showCVPanel ? (
+          <div className="mx-3 mt-2 flex flex-shrink-0 items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
+            <span className="truncate font-medium">
+              {t('agent.cvImportedBanner', { name: cvMeta.fileName })}
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowCVPanel(true)}
+              className="ml-auto flex-shrink-0 font-semibold text-blue-700 hover:underline dark:text-blue-300"
+            >
+              {t('agent.myCv')}
+            </button>
+          </div>
+        ) : null}
         {showCVPanel ? (
-          <div className="mx-3 mb-2 flex-shrink-0 overflow-hidden rounded-2xl border border-purple-100 bg-white shadow-lg dark:border-purple-900 dark:bg-slate-900">
-            <div className="flex items-center justify-between border-b border-purple-100 bg-purple-50 px-4 py-3 dark:border-purple-900 dark:bg-purple-950/40">
+          <div className="mx-3 mb-2 mt-2 flex-shrink-0 overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-lg dark:border-blue-900 dark:bg-slate-900">
+            <div className="flex items-center justify-between border-b border-blue-100 bg-blue-50 px-4 py-3 dark:border-blue-900 dark:bg-blue-950/40">
               <div className="flex items-center gap-2">
-                <span className="text-purple-600">📎</span>
-                <span className="text-sm font-semibold text-purple-800 dark:text-purple-200">{t('agent.myCv')}</span>
+                <Paperclip className="h-4 w-4 text-blue-600" strokeWidth={2} aria-hidden />
+                <span className="text-sm font-semibold text-blue-800 dark:text-blue-200">{t('agent.myCv')}</span>
                 {cvData ? (
                   <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">{t('agent.cvLoaded')}</span>
                 ) : null}
@@ -805,16 +999,16 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
                 onClick={() => setShowCVPanel(false)}
                 className="text-sm text-gray-400 hover:text-gray-600"
               >
-                ✕
+                <X className="h-4 w-4" strokeWidth={2} />
               </button>
             </div>
 
             {cvUploading ? (
-              <p className="px-4 py-6 text-center text-xs text-purple-700">{t('agent.cvParsing')}</p>
+              <p className="px-4 py-6 text-center text-xs text-blue-700">{t('agent.cvParsing')}</p>
             ) : cvData ? (
               <div className="px-4 py-3">
                 <div className="mb-3 flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2 dark:bg-blue-950/40">
-                  <span className="text-sm text-blue-500">📄</span>
+                  <FileText className="h-4 w-4 shrink-0 text-blue-500" strokeWidth={2} aria-hidden />
                   <span className="truncate text-sm font-medium text-blue-700 dark:text-blue-300">
                     {cvData.fileName}
                   </span>
@@ -822,14 +1016,15 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
 
                 <div className="mb-3 grid grid-cols-2 gap-2">
                   {[
-                    { icon: '📧', label: t('jobAssistant.profileEmail'), value: cvData.email },
-                    { icon: '📞', label: t('jobAssistant.profilePhone'), value: cvData.phone },
-                    { icon: '🎓', label: t('jobAssistant.profileEducation'), value: cvData.formation },
-                    { icon: '💼', label: t('jobAssistant.profileExperience'), value: cvData.experience }
+                    { icon: Mail, label: t('jobAssistant.profileEmail'), value: cvData.email },
+                    { icon: Phone, label: t('jobAssistant.profilePhone'), value: cvData.phone },
+                    { icon: GraduationCap, label: t('jobAssistant.profileEducation'), value: cvData.formation },
+                    { icon: Briefcase, label: t('jobAssistant.profileExperience'), value: cvData.experience }
                   ].map((item) => (
                     <div key={item.label} className="rounded-lg bg-gray-50 px-2.5 py-2 dark:bg-slate-800">
-                      <p className="mb-0.5 text-xs text-gray-400">
-                        {item.icon} {item.label}
+                      <p className="mb-0.5 flex items-center gap-1 text-xs text-gray-400">
+                        <item.icon className="h-3 w-3" strokeWidth={2} aria-hidden />
+                        {item.label}
                       </p>
                       <p className="truncate text-xs font-medium text-gray-700 dark:text-slate-200">
                         {item.value || '—'}
@@ -840,7 +1035,8 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
 
                 <div className="flex gap-2">
                   <label className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-gray-100 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-slate-800 dark:text-slate-200">
-                    🔄 {t('agent.changeCv')}
+                    <RefreshCw className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                    {t('agent.changeCv')}
                     <input
                       type="file"
                       className="hidden"
@@ -859,9 +1055,10 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
                       setShowCVPanel(false);
                     }}
                     disabled={docGenerating}
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-purple-600 py-2 text-xs font-medium text-white transition-colors hover:bg-purple-700 disabled:opacity-50"
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-blue-700 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-800 disabled:opacity-50"
                   >
-                    ✨ {t('agent.generateCvBtn')}
+                    <Sparkles className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                    {t('agent.generateCvBtn')}
                   </button>
                   <button
                     type="button"
@@ -872,17 +1069,18 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
                     disabled={docGenerating}
                     className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-blue-600 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
                   >
-                    ✏️ {t('agent.fixCvBtn')}
+                    <Pencil className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                    {t('agent.fixCvBtn')}
                   </button>
                 </div>
               </div>
             ) : (
               <div className="px-4 py-4">
-                <label className="group flex w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-purple-200 bg-purple-50/50 py-5 transition-colors hover:bg-purple-50 dark:border-purple-800 dark:bg-purple-950/20">
-                  <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-purple-100 transition-colors group-hover:bg-purple-200">
-                    <span className="text-xl">⬆️</span>
+                <label className="group flex w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-blue-200 bg-blue-50/50 py-5 transition-colors hover:bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20">
+                  <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 transition-colors group-hover:bg-blue-200">
+                    <Upload className="h-5 w-5 text-blue-600" strokeWidth={2} aria-hidden />
                   </div>
-                  <span className="text-sm font-semibold text-purple-700 dark:text-purple-300">{t('agent.importCv')}</span>
+                  <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">{t('agent.importCv')}</span>
                   <span className="mt-1 text-xs text-gray-400">{t('agent.cvFormats')}</span>
                   <input
                     type="file"
@@ -900,23 +1098,27 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
           </div>
         ) : null}
 
-        <div className="agent-chat-scroll flex-1 space-y-3 overflow-y-auto bg-gray-50 p-4 dark:bg-slate-950">
+        <div className="agent-chat-scroll flex-1 space-y-4 overflow-y-auto bg-slate-50 p-4 dark:bg-slate-950">
           {messages.map((msg, i) => (
-            <div key={i} className={`flex gap-2 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+            <div key={i} className={`flex gap-2.5 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
               <div
-                className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs ${
+                className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs ${
                   msg.role === 'user'
                     ? 'bg-blue-600 text-white'
-                    : 'bg-gradient-to-br from-purple-500 to-blue-500 text-white'
+                    : 'bg-gradient-to-br from-[#1e3a5f] to-blue-600 text-white'
                 }`}
               >
-                {msg.role === 'user' ? '👤' : '🤖'}
+                {msg.role === 'user' ? (
+                  <User className="h-4 w-4" strokeWidth={2} aria-hidden />
+                ) : (
+                  <Bot className="h-4 w-4" strokeWidth={2} aria-hidden />
+                )}
               </div>
               <div
-                className={`max-w-[78%] rounded-2xl px-3 py-2 text-sm ${
+                className={`max-w-[min(80%,38rem)] min-w-0 rounded-2xl px-3.5 py-2.5 ${
                   msg.role === 'user'
-                    ? 'rounded-tr-none bg-blue-600 text-white'
-                    : 'rounded-tl-none border border-gray-100 bg-white text-gray-800 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100'
+                    ? 'rounded-tr-none bg-blue-600 text-[13px] leading-relaxed text-white'
+                    : 'rounded-tl-none border border-slate-200 bg-white text-[13px] leading-relaxed text-slate-800 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100'
                 }`}
               >
                 <MessageContent
@@ -924,6 +1126,7 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
                   document={msg.document}
                   provider={msg.provider}
                   isUser={msg.role === 'user'}
+                  streaming={Boolean(msg.streaming)}
                   t={t}
                 />
               </div>
@@ -931,19 +1134,24 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
           ))}
 
           {isTyping ? (
-            <div className="flex gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-blue-500 text-xs text-white">
-                🤖
+            <div className="flex gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#1e3a5f] to-blue-600 text-white">
+                <Bot className="h-4 w-4" strokeWidth={2} aria-hidden />
               </div>
-              <div className="rounded-2xl rounded-tl-none border border-gray-100 bg-white px-3 py-2 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-                <div className="flex h-4 items-center gap-1">
-                  {[0, 150, 300].map((delay) => (
-                    <span
-                      key={delay}
-                      className="h-1.5 w-1.5 animate-bounce rounded-full bg-purple-400"
-                      style={{ animationDelay: `${delay}ms` }}
-                    />
-                  ))}
+              <div className="rounded-2xl rounded-tl-none border border-slate-200 bg-white px-3.5 py-2.5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-4 items-center gap-1" aria-hidden>
+                    {[0, 150, 300].map((delay) => (
+                      <span
+                        key={delay}
+                        className="h-1.5 w-1.5 animate-bounce rounded-full bg-blue-500"
+                        style={{ animationDelay: `${delay}ms` }}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                    {t('agent.thinking')}
+                  </span>
                 </div>
               </div>
             </div>
@@ -958,12 +1166,12 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
               onClick={() => setShowCVPanel((v) => !v)}
               className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border-2 text-lg transition-all duration-200 ${
                 showCVPanel
-                  ? 'border-purple-600 bg-purple-600 text-white'
-                  : 'border-gray-300 bg-white text-gray-500 hover:border-purple-400 hover:text-purple-600 dark:border-slate-600 dark:bg-slate-800'
+                  ? 'border-blue-600 bg-blue-600 text-white'
+                  : 'border-gray-300 bg-white text-gray-500 hover:border-blue-400 hover:text-blue-600 dark:border-slate-600 dark:bg-slate-800'
               }`}
               title={t('agent.cvPanelToggle')}
             >
-              {showCVPanel ? '✕' : '+'}
+              {showCVPanel ? <X className="h-4 w-4" strokeWidth={2} /> : <Plus className="h-4 w-4" strokeWidth={2} />}
             </button>
 
             <textarea
@@ -975,22 +1183,60 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
                   sendMessage();
                 }
               }}
-              placeholder={t('agent.inputPlaceholder')}
+              placeholder={
+                speech.listening ? t('agent.micListening') : t('agent.inputPlaceholder')
+              }
               rows={1}
               style={{ minHeight: '38px' }}
-              className="max-h-24 flex-1 resize-none rounded-xl border border-gray-200 px-3 py-2 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-purple-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+              className="max-h-24 flex-1 resize-none rounded-xl border border-gray-200 px-3 py-2 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
             />
+
+            <button
+              type="button"
+              onClick={() => {
+                if (!speech.supported) {
+                  toast.error(t('agent.micUnsupported'));
+                  return;
+                }
+                setMicError(null);
+                speech.toggle();
+              }}
+              disabled={isTyping}
+              className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border-2 text-base transition-all ${
+                speech.listening
+                  ? 'border-rose-500 bg-rose-500 text-white animate-pulse'
+                  : 'border-gray-300 bg-white text-gray-600 hover:border-blue-400 hover:text-blue-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200'
+              } disabled:opacity-40`}
+              title={speech.listening ? t('agent.micStop') : t('agent.micStart')}
+              aria-pressed={speech.listening}
+              aria-label={speech.listening ? t('agent.micStop') : t('agent.micStart')}
+            >
+              {speech.listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            </button>
 
             <button
               type="button"
               onClick={() => sendMessage()}
               disabled={!input.trim() || isTyping}
-              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-purple-600 to-blue-600 text-base text-white transition-all hover:opacity-90 disabled:opacity-40"
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#1e3a5f] to-blue-600 text-base text-white transition-all hover:opacity-90 disabled:opacity-40"
             >
               ➤
             </button>
           </div>
-          <p className="mt-1 text-center text-xs text-gray-400">{t('agent.inputHint')}</p>
+          <p className="mt-1 text-center text-xs text-gray-400">
+            {micError
+              ? ({
+                  unsupported: t('agent.micErrorUnsupported'),
+                  'not-allowed': t('agent.micErrorNotAllowed'),
+                  'no-speech': t('agent.micErrorNoSpeech'),
+                  network: t('agent.micErrorNetwork'),
+                  start_failed: t('agent.micErrorStartFailed'),
+                  'audio-capture': t('agent.micErrorNotAllowed')
+                }[micError] || t('agent.micErrorUnknown'))
+              : tts.error && tts.enabled
+                ? t('agent.ttsError')
+                : t('agent.inputHint')}
+          </p>
         </div>
           </div>
         </div>

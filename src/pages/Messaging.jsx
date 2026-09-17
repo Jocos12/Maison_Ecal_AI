@@ -1,5 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
+import {
+  Archive,
+  Bot,
+  Briefcase,
+  Check,
+  Folder,
+  Inbox,
+  Mail,
+  Pencil,
+  Search,
+  Send,
+  Share2,
+  Tag,
+  Trash2,
+  User,
+  Users
+} from 'lucide-react';
 import { api } from '../api/client.js';
 import { useI18n } from '../context/I18nContext.jsx';
 
@@ -97,13 +114,13 @@ function categorizeEmail(email) {
 }
 
 const CATEGORY_OPTIONS = [
-  { id: 'all', label: 'Tous les emails', icon: '📥' },
-  { id: 'client', label: 'Clients / Opportunités', icon: '🔴', color: 'red', group: 'PRIORITAIRES' },
-  { id: 'personnel', label: 'Personnel', icon: '🟠', color: 'orange' },
-  { id: 'apps', label: 'Applications', icon: '🟡', color: 'yellow', group: 'AUTRES' },
-  { id: 'social', label: 'Réseaux sociaux', icon: '🔵', color: 'blue' },
-  { id: 'promo', label: 'Promotions', icon: '⚪', color: 'gray' },
-  { id: 'autre', label: 'Autre', icon: '⚫', color: 'gray' }
+  { id: 'all', label: 'Tous les emails', icon: Inbox },
+  { id: 'client', label: 'Clients / Opportunités', icon: Users, color: 'red', group: 'PRIORITAIRES' },
+  { id: 'personnel', label: 'Personnel', icon: User, color: 'orange' },
+  { id: 'apps', label: 'Applications', icon: Briefcase, color: 'yellow', group: 'AUTRES' },
+  { id: 'social', label: 'Réseaux sociaux', icon: Share2, color: 'blue' },
+  { id: 'promo', label: 'Promotions', icon: Tag, color: 'gray' },
+  { id: 'autre', label: 'Autre', icon: Folder, color: 'gray' }
 ];
 
 const PAGE_SIZE = 15;
@@ -548,7 +565,7 @@ export default function Messaging() {
   const conversationParts = selected ? getConversationParts(selected, gmailStatus.userEmail) : [];
 
   return (
-    <div className="messaging-page space-y-6">
+    <div className="page-shell messaging-page space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-950 dark:text-white">{t('pages.messaging.title')}</h1>
@@ -560,8 +577,9 @@ export default function Messaging() {
         </div>
         <div className="flex gap-2">
           {gmailStatus.connected && (
-            <button onClick={() => setComposeOpen(true)} className="rounded-xl bg-emerald-600 px-4 py-2 font-bold text-white">
-              ✉️ Nouveau message
+            <button onClick={() => setComposeOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 font-bold text-white">
+              <Mail className="h-4 w-4" strokeWidth={2} aria-hidden />
+              Nouveau message
             </button>
           )}
           {!gmailStatus.connected && (
@@ -606,7 +624,10 @@ export default function Messaging() {
                     onClick={() => setFilter(option.id)}
                     className={filter === option.id ? 'active' : ''}
                   >
-                    <span>{option.icon} {option.label}</span>
+                    <span className="inline-flex items-center gap-2">
+                      <option.icon className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
+                      {option.label}
+                    </span>
                     <span className={`count ${option.color ? `badge-${option.color}` : ''}`}>
                       {categoryCounts[option.id] || 0}
                     </span>
@@ -616,9 +637,10 @@ export default function Messaging() {
             </div>
 
             <div className="search-box">
+              <Search className="search-box-icon" strokeWidth={2} aria-hidden />
               <input
                 value={search}
-                placeholder="🔍 Rechercher..."
+                placeholder="Rechercher..."
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
@@ -718,9 +740,18 @@ export default function Messaging() {
                       </div>
                     </div>
                     <div className="reader-actions">
-                      <button type="button" onClick={() => markAsRead(selected.id)}>✅ Marquer lu</button>
-                      <button type="button" onClick={() => archiveEmail(selected.id)}>📁 Archiver</button>
-                      <button type="button" onClick={() => deleteEmail(selected.id)}>🗑️ Supprimer</button>
+                      <button type="button" onClick={() => markAsRead(selected.id)}>
+                        <Check className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                        Marquer lu
+                      </button>
+                      <button type="button" onClick={() => archiveEmail(selected.id)}>
+                        <Archive className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                        Archiver
+                      </button>
+                      <button type="button" onClick={() => deleteEmail(selected.id)}>
+                        <Trash2 className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                        Supprimer
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -763,7 +794,14 @@ export default function Messaging() {
                         className="btn-ai disabled:opacity-60"
                         disabled={loadingAi}
                       >
-                        {loadingAi ? 'Génération...' : '🤖 Générer réponse IA'}
+                        {loadingAi ? (
+                          'Génération...'
+                        ) : (
+                          <>
+                            <Bot className="h-4 w-4" strokeWidth={2} aria-hidden />
+                            Générer réponse IA
+                          </>
+                        )}
                       </button>
                       <button
                         type="button"
@@ -802,7 +840,8 @@ export default function Messaging() {
                                   setReplyMode(true);
                                 }}
                               >
-                                ✅ Préparer
+                                <Check className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                                Préparer
                               </button>
                               <button
                                 type="button"
@@ -811,7 +850,8 @@ export default function Messaging() {
                                   setReplyMode(true);
                                 }}
                               >
-                                ✏️ Modifier
+                                <Pencil className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                                Modifier
                               </button>
                             </div>
                           </div>
@@ -831,7 +871,10 @@ export default function Messaging() {
                           <span>De: {gmailStatus.userEmail || 'maisonecal@gmail.com'}</span>
                           <div>
                             <button type="button" onClick={() => setReplyMode(false)}>Annuler</button>
-                            <button type="button" onClick={() => sendReply(replyText)} className="btn-send">📤 Envoyer</button>
+                            <button type="button" onClick={() => sendReply(replyText)} className="btn-send">
+                              <Send className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                              Envoyer
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -841,7 +884,9 @@ export default function Messaging() {
               </>
             ) : (
               <div className="empty-reader">
-                <div className="empty-icon">📧</div>
+                <div className="empty-icon">
+                  <Mail className="h-10 w-10" strokeWidth={1.75} aria-hidden />
+                </div>
                 <h3>Sélectionnez un email</h3>
                 <p>Cliquez sur un message pour le lire</p>
               </div>
@@ -891,7 +936,14 @@ export default function Messaging() {
             <div className="compose-footer">
               <button type="button" onClick={() => setComposeOpen(false)}>Annuler</button>
               <button type="button" className="btn-send" onClick={sendNewMessage} disabled={sendingCompose}>
-                {sendingCompose ? 'Envoi...' : '📤 Envoyer'}
+                {sendingCompose ? (
+                  'Envoi...'
+                ) : (
+                  <>
+                    <Send className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                    Envoyer
+                  </>
+                )}
               </button>
             </div>
           </div>

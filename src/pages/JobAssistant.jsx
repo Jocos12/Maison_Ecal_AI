@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   AlertTriangle,
+  Bot,
   Briefcase,
   CheckCircle2,
   Circle,
@@ -20,16 +21,21 @@ import {
   X
 } from 'lucide-react';
 import { api } from '../api/client.js';
+import { downloadJobDocument } from '../utils/downloadJobDocument.js';
 import { CV_ACCEPT, prepareCvUploadPayload } from '../utils/extractCvText.js';
 import LinkedInLogistiqueRDC from '../components/linkedin/LinkedInLogistiqueRDC.jsx';
 import {
   JOB_SOURCE_FILTERS,
   getSearchPhaseLabel,
+  jobMatchesSource,
   resolveSourcesParam
 } from '../config/jobSourceFilters.js';
 import { getSystemPromptByLanguage } from '../utils/detectMessageLanguage.js';
 import { useI18n } from '../context/I18nContext.jsx';
+import { AgentMarkdown } from '../utils/agentMarkdown.jsx';
 import { useUiLocale } from '../hooks/useUiLocale.js';
+import { useAiDegradedMode } from '../hooks/useAiDegradedMode.js';
+import DegradedModeBanner from '../components/agent/DegradedModeBanner.jsx';
 
 const ACTIVE_CONV_KEY = 'mecal_job_assistant_active_conv';
 
@@ -61,20 +67,6 @@ function groupConversations(list, t, dateLocale) {
     groups[label].push(c);
   }
   return groups;
-}
-
-function renderMarkdownLite(text = '') {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return (
-        <strong key={i} className="font-bold">
-          {part.slice(2, -2)}
-        </strong>
-      );
-    }
-    return <span key={i}>{part}</span>;
-  });
 }
 
 function SuggestionChips({ suggestions, onSelect, disabled }) {
@@ -133,7 +125,9 @@ function SourceFilterPills({ activeSource, onChange, disabled }) {
   const labelFor = (id, label) => (id === 'all' ? t('jobAssistant.sourceAll') : label);
   return (
     <div className="flex flex-wrap gap-2 border-b border-slate-200 px-5 py-3 dark:border-slate-800">
-      {JOB_SOURCE_FILTERS.map((src) => (
+      {JOB_SOURCE_FILTERS.map((src) => {
+        const Icon = src.icon;
+        return (
         <button
           key={src.id}
           type="button"
@@ -145,10 +139,11 @@ function SourceFilterPills({ activeSource, onChange, disabled }) {
               : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
           } disabled:opacity-50`}
         >
-          <span>{src.icon}</span>
+          <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
           {labelFor(src.id, src.label)}
         </button>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -287,8 +282,14 @@ function JobOfferCard({ job, selected, onSelect, onGenerate, generating, profile
         </button>
         <button
           type="button"
-          disabled={generating || !profileComplete}
-          title={!profileComplete ? t('jobAssistant.completeProfileTitle') : ''}
+          disabled={generating || !profileComplete || job.isManualLink}
+          title={
+            job.isManualLink
+              ? t('jobAssistant.docsDisabledSelectOffer')
+              : !profileComplete
+                ? t('jobAssistant.completeProfileTitle')
+                : ''
+          }
           onClick={() => onGenerate('letter', job)}
           className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold disabled:opacity-50 dark:border-slate-600"
         >
@@ -355,13 +356,21 @@ function ConversationSidebar({
                 <button
                   type="button"
                   onClick={() => onSelect(c.id)}
-                  className={`w-full px-3 py-2 pr-8 text-left text-sm font-semibold ${
+                  className={`w-full px-3 py-2.5 pr-8 text-left ${
                     activeId === c.id
                       ? 'text-blue-800 dark:text-blue-200'
                       : 'text-slate-800 dark:text-slate-100'
                   }`}
                 >
-                  <span className="line-clamp-2">{c.title}</span>
+                  <span className="line-clamp-2 text-sm font-semibold">{c.title}</span>
+                  {c.preview ? (
+                    <span className="mt-0.5 block line-clamp-2 text-[11px] font-normal text-slate-500 dark:text-slate-400">
+                      {c.preview}
+                    </span>
+                  ) : null}
+                  <span className="mt-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">
+                    {relativeDate(c.updatedAt, t, dateLocale)}
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -388,6 +397,7 @@ function ConversationSidebar({
 
 export default function JobAssistant() {
   const { t, lang, dateLocale } = useUiLocale();
+  const { degraded, noteProvider } = useAiDegradedMode();
   const [searchParams] = useSearchParams();
   const showLinkedIn = searchParams.get('section') === 'linkedin';
   const [conversations, setConversations] = useState([]);
@@ -568,6 +578,10 @@ export default function JobAssistant() {
     const locale = lang;
     const systemPrompt = getSystemPromptByLanguage(locale);
     setSearchPhase(getSearchPhaseLabel(activeSource, t));
+    setMessages((prev) => [
+      ...prev,
+      { role: 'user', content: text, timestamp: new Date().toISOString(), pending: true }
+    ]);
 
     try {
       const { data } = await api.post(
@@ -576,6 +590,10 @@ export default function JobAssistant() {
       );
 
       applyConversation(data.conversation);
+      noteProvider(data.provider);
+      if (data.document?.documentId) {
+        setPendingDoc(data.document);
+      }
 
       const alerts = [...(data.sourceAlerts || [])];
       if (!profileComplete) {
@@ -609,33 +627,69 @@ export default function JobAssistant() {
     }
   };
 
-  const generateDocument = async (type, job = selectedJob) => {
-    if (!job) {
+  const generateDocument = async (type, job = selectedJob, mode) => {
+    if (type === 'letter' && !job) {
       toast.error(t('jobAssistant.selectOfferFirst'));
       return;
     }
-    if (!profileComplete) {
+    if (!profileComplete && !cvMeta?.fileName) {
       toast.error(t('jobAssistant.completeProfileShort'));
       return;
     }
-    setSelectedJob(job);
+    if (job) setSelectedJob(job);
     setLoading(true);
     try {
       const { data } = await api.post('/api/job-assistant/generate-document', {
         type,
-        job,
+        job: job || selectedJob || undefined,
         profile,
         conversationId: activeConversationId,
-        locale: lang
+        locale: lang,
+        mode
       });
       setPendingDoc(data);
       if (data.conversation) applyConversation(data.conversation);
-      toast.success(type === 'cv' ? t('jobAssistant.cvGenerated') : t('jobAssistant.letterGenerated'));
+      if (data.documentId) {
+        await downloadJobDocument(data.documentId, data.fileName || `${type}-mecal.pdf`);
+      }
+      toast.success(
+        type === 'cv'
+          ? t('jobAssistant.cvGenerated')
+          : type === 'recommendation'
+            ? t('jobAssistant.recoGenerated')
+            : t('jobAssistant.letterGenerated')
+      );
     } catch (e) {
       toast.error(e.response?.data?.message || t('jobAssistant.generationError'));
     } finally {
       setLoading(false);
     }
+  };
+
+  const conversationJobs = useMemo(() => {
+    const seen = new Set();
+    const jobs = [];
+    for (const m of messages) {
+      for (const job of m.jobs || []) {
+        const key = job.sourceUrl || `${job.title}|${job.organization}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        jobs.push(job);
+      }
+    }
+    return jobs;
+  }, [messages]);
+
+  const filteredDocs = useMemo(
+    () => conversationJobs.filter((job) => jobMatchesSource(job, activeSource)),
+    [conversationJobs, activeSource]
+  );
+
+  const askAboutJob = (job) => {
+    selectJob(job);
+    handleSend(
+      `Parle-moi précisément de cette offre : « ${job.title} » chez ${job.organization} (${job.city || 'RDC'}, source ${job.platform || job.source || 'vérifiée'}). ${job.sourceUrl || ''}`
+    );
   };
 
   const openSubmitModal = () => {
@@ -682,14 +736,10 @@ export default function JobAssistant() {
     }
   };
 
-  const downloadUrl = (path) => {
-    const base = import.meta.env.VITE_API_URL || '';
-    return `${base}${path}`;
-  };
-
-  const docsDisabledReason = !selectedJob
+  const canMakeCv = profileComplete || Boolean(cvMeta?.fileName);
+  const letterDisabledReason = !selectedJob
     ? t('jobAssistant.docsDisabledSelectOffer')
-    : !profileComplete
+    : !canMakeCv
       ? t('jobAssistant.docsDisabledCompleteProfile')
       : '';
 
@@ -704,10 +754,10 @@ export default function JobAssistant() {
 
   if (showLinkedIn) {
     return (
-      <div className="mx-auto w-full max-w-6xl overflow-y-auto pb-8">
+      <div className="page-shell overflow-y-auto pb-8">
         <Link
           to="/assistant-emploi"
-          className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400"
+          className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-700 hover:text-blue-900 dark:text-blue-400"
         >
           <MessageSquarePlus className="h-4 w-4" />
           {t('jobAssistant.backToAssistant')}
@@ -734,7 +784,7 @@ export default function JobAssistant() {
             onClick={() => setShowDocuments((v) => !v)}
             className={`inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ${
               showDocuments
-                ? 'bg-orange-500 text-white shadow-md'
+                ? 'bg-blue-600 text-white shadow-md'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
             }`}
             aria-expanded={showDocuments}
@@ -768,6 +818,8 @@ export default function JobAssistant() {
           </div>
         ) : null}
 
+        <DegradedModeBanner show={degraded} label={t('agent.degradedMode')} />
+
         <SourceFilterPills
           activeSource={activeSource}
           onChange={setActiveSource}
@@ -787,7 +839,11 @@ export default function JobAssistant() {
                     : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100'
                 }`}
               >
-                <div className="whitespace-pre-wrap">{renderMarkdownLite(msg.content)}</div>
+                {msg.role === 'assistant' ? (
+                  <AgentMarkdown text={msg.content} />
+                ) : (
+                  <div className="whitespace-pre-wrap">{msg.content}</div>
+                )}
                 <SuggestionChips
                   suggestions={msg.suggestions}
                   disabled={loading}
@@ -809,22 +865,45 @@ export default function JobAssistant() {
                     ))}
                   </div>
                 )}
-                {msg.document?.downloadUrl && (
-                  <a
-                    href={downloadUrl(msg.document.downloadUrl)}
-                    className="mt-3 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white"
+                {msg.document?.documentId && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      downloadJobDocument(
+                        msg.document.documentId,
+                        msg.document.fileName || 'document-mecal.pdf'
+                      )
+                    }
+                    className="mt-3 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white"
                   >
                     <Download className="h-3 w-3" />
                     {t('agent.downloadPdf')}
-                  </a>
+                  </button>
                 )}
               </div>
             </div>
           ))}
           {loading && (
-            <div className="flex shrink-0 items-center gap-2 text-sm text-slate-500">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              {searchPhase || t('jobAssistant.thinking')}
+            <div className="flex shrink-0 gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-white">
+                <Bot className="h-4 w-4" strokeWidth={2} aria-hidden />
+              </div>
+              <div className="rounded-2xl rounded-tl-none border border-slate-200 bg-white px-3.5 py-2.5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-4 items-center gap-1" aria-hidden>
+                    {[0, 150, 300].map((delay) => (
+                      <span
+                        key={delay}
+                        className="h-1.5 w-1.5 animate-bounce rounded-full bg-blue-500"
+                        style={{ animationDelay: `${delay}ms` }}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                    {searchPhase || t('jobAssistant.thinking')}
+                  </span>
+                </div>
+              </div>
             </div>
           )}
           <div ref={bottomRef} />
@@ -852,7 +931,21 @@ export default function JobAssistant() {
       </div>
 
       {(showProfile || showDocuments) && (
-      <aside className="flex h-full min-h-0 w-full shrink-0 flex-col gap-3 overflow-hidden lg:w-72">
+      <aside className="fixed inset-x-0 bottom-0 z-40 flex max-h-[78vh] min-h-0 w-full flex-col gap-3 overflow-hidden rounded-t-2xl border border-slate-200 bg-slate-50 p-3 shadow-2xl dark:border-slate-800 dark:bg-slate-950 xl:static xl:z-auto xl:h-full xl:max-h-none xl:w-80 xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none">
+        <div className="flex items-center justify-between xl:hidden">
+          <p className="text-sm font-bold text-slate-800 dark:text-white">{t('jobAssistant.documents')}</p>
+          <button
+            type="button"
+            onClick={() => {
+              setShowDocuments(false);
+              setShowProfile(false);
+            }}
+            className="grid h-8 w-8 place-items-center rounded-full text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800"
+            aria-label={t('common.close')}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
         {showProfile ? (
           <div className="flex max-h-[calc(100vh-180px)] min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow dark:border-slate-800 dark:bg-slate-950">
             <div className="flex shrink-0 items-center justify-between border-b border-slate-200 p-4 dark:border-slate-800">
@@ -927,54 +1020,109 @@ export default function JobAssistant() {
         ) : null}
 
         {showDocuments ? (
-        <section className="shrink-0 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-2 font-bold">
-              <FileText className="h-5 w-5 text-amber-500" />
-              {t('jobAssistant.documents')}
-            </div>
-            {selectedJob ? (
-              <div className="rounded-lg bg-slate-50 p-3 text-sm dark:bg-slate-900">
-                <p className="font-bold text-slate-900 dark:text-white">{selectedJob.title}</p>
-                <p className="text-slate-500">{selectedJob.organization}</p>
-                {selectedJob.verified && (
-                  <span className="mt-2 inline-block rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-                    {t('jobAssistant.verifiedSource')}
-                  </span>
-                )}
-              </div>
+        <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
+          <div className="flex items-center gap-2 border-b border-slate-100 p-4 font-bold dark:border-slate-800">
+            <FileText className="h-5 w-5 text-blue-600" />
+            {t('jobAssistant.documents')}
+          </div>
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+            {cvMeta?.fileName ? (
+              <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+                {t('jobAssistant.lastCv', { name: cvMeta.fileName })}
+              </p>
+            ) : null}
+            {filteredDocs.length ? (
+              <ul className="space-y-2">
+                {filteredDocs.map((job, i) => (
+                  <li key={`${job.sourceUrl || job.title}-${i}`}>
+                    <button
+                      type="button"
+                      onClick={() => selectJob(job)}
+                      className={`w-full rounded-xl border p-3 text-left text-sm transition ${
+                        selectedJob?.sourceUrl && selectedJob.sourceUrl === job.sourceUrl
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40'
+                          : 'border-slate-200 hover:border-blue-300 dark:border-slate-700'
+                      }`}
+                    >
+                      <p className="font-semibold text-slate-900 dark:text-white">{job.title}</p>
+                      <p className="text-xs text-slate-500">{job.organization}</p>
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        {job.verified ? (
+                          <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                            {t('jobAssistant.verifiedSource')}
+                          </span>
+                        ) : null}
+                        <span className="text-[10px] text-slate-400">{job.platform || job.source}</span>
+                      </div>
+                    </button>
+                    <div className="mt-1 flex gap-1">
+                      {job.sourceUrl ? (
+                        <a
+                          href={job.sourceUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-50"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          {t('jobAssistant.viewSourceOffer')}
+                        </a>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => askAboutJob(job)}
+                        className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-50"
+                      >
+                        <Bot className="h-3 w-3" />
+                        {t('jobAssistant.discussOffer')}
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
             ) : (
               <p className="text-xs text-slate-500">{t('jobAssistant.noOfferSelected')}</p>
             )}
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
             <button
               type="button"
-              disabled={loading || !selectedJob || !profileComplete}
-              title={docsDisabledReason}
+              disabled={loading || !canMakeCv}
+              title={!canMakeCv ? t('jobAssistant.docsDisabledCompleteProfile') : ''}
               onClick={() => generateDocument('cv')}
-              className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-700"
+              className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
               {t('jobAssistant.generateCvPdf')}
             </button>
             <button
               type="button"
-              disabled={loading || !selectedJob || !profileComplete}
-              title={docsDisabledReason}
+              disabled={loading || !canMakeCv}
+              title={!canMakeCv ? t('jobAssistant.docsDisabledCompleteProfile') : ''}
+              onClick={() => generateDocument('cv', selectedJob, 'correct')}
+              className="rounded-xl border border-blue-300 px-3 py-2 text-sm font-bold text-blue-800 disabled:cursor-not-allowed disabled:opacity-50 dark:text-blue-200"
+            >
+              {t('jobAssistant.correctCvPdf')}
+            </button>
+            <button
+              type="button"
+              disabled={loading || !selectedJob || selectedJob.isManualLink || !canMakeCv}
+              title={letterDisabledReason}
               onClick={() => generateDocument('letter')}
               className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600"
             >
               {t('jobAssistant.generateLetterPdf')}
             </button>
-            {docsDisabledReason && <p className="text-xs text-slate-400">{docsDisabledReason}</p>}
+            {letterDisabledReason && <p className="text-xs text-slate-400">{letterDisabledReason}</p>}
             {pendingDoc && (
               <>
-                <a
-                  href={downloadUrl(pendingDoc.downloadUrl)}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-sm font-bold text-white"
+                <button
+                  type="button"
+                  onClick={() =>
+                    downloadJobDocument(pendingDoc.documentId, pendingDoc.fileName || 'document-mecal.pdf')
+                  }
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-sm font-bold text-white"
                 >
                   <Download className="h-4 w-4" />
                   {t('agent.downloadPdf')}
-                </a>
+                </button>
                 <button
                   type="button"
                   onClick={openSubmitModal}

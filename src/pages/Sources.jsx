@@ -2,36 +2,96 @@ import { useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import toast from 'react-hot-toast';
-import { ExternalLink, Globe2, MapPin, RefreshCw } from 'lucide-react';
+import {
+  AlertCircle,
+  CheckCircle2,
+  CirclePause,
+  ExternalLink,
+  Globe2,
+  MapPin,
+  Play,
+  RefreshCw,
+  XCircle
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { useI18n } from '../context/I18nContext.jsx';
-import { isRdcOpportunity, platformPillClass, CATEGORY_BADGE } from '../utils/opportunityUi.js';
+import { useApp } from '../context/AppContext.jsx';
+import { platformPillClass, CATEGORY_BADGE } from '../utils/opportunityUi.js';
+import { scorePercent } from '../utils/opportunityUrgency.js';
 
-function matchSourceToPlatform(source, platform) {
-  const key = (source.scraperKey || source.key || source.name || '').toLowerCase();
-  const p = (platform || '').toLowerCase();
-  if (key.includes(p) || p.includes(key.replace(/[^a-z]/g, ''))) return true;
-  const map = {
-    profilrdc: 'profilrdc',
-    reliefweb: 'reliefweb',
-    unjobs: 'unjobs',
-    ungm: 'ungm',
-    devex: 'devex',
-    achatpublic: 'achatpublicrdc',
-    hdx: 'hdx',
-    worldbank: 'worldbank',
-    afdb: 'afdb'
-  };
-  for (const [k, v] of Object.entries(map)) {
-    if (key.includes(k) && p.includes(v)) return true;
+const GROUPS = [
+  {
+    id: 'rdc',
+    title: 'Marchés publics RDC',
+    keys: ['ARSP', 'SIGMAP', 'AchatPublicRDC', 'ProfilRDC']
+  },
+  {
+    id: 'intl',
+    title: 'Organisations internationales',
+    keys: ['UNGM', 'UNGMVeille', 'ReliefWeb', 'AfDB', 'AfDBVeille']
   }
-  return source.name?.toLowerCase() === p;
+];
+
+function groupSources(sources) {
+  const used = new Set();
+  const grouped = GROUPS.map((g) => ({
+    ...g,
+    items: sources.filter((s) => {
+      const key = s.scraperKey || s.key;
+      const hit = g.keys.includes(key) || g.keys.includes(s.key);
+      if (hit) used.add(s._id);
+      return hit;
+    })
+  }));
+  grouped.push({
+    id: 'other',
+    title: 'Autres',
+    items: sources.filter((s) => !used.has(s._id))
+  });
+  return grouped.filter((g) => g.items.length);
+}
+
+function HealthBadge({ health }) {
+  if (health === 'healthy') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-700 ring-1 ring-emerald-500/30">
+        <CheckCircle2 className="h-3 w-3" /> Pertinent
+      </span>
+    );
+  }
+  if (health === 'error') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-bold uppercase text-red-700 ring-1 ring-red-500/30">
+        <XCircle className="h-3 w-3" /> Erreur
+      </span>
+    );
+  }
+  if (health === 'inactive') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-600">
+        <CirclePause className="h-3 w-3" /> Inactif
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-800 ring-1 ring-amber-500/30">
+      <AlertCircle className="h-3 w-3" /> 0 pertinent
+    </span>
+  );
+}
+
+function statusLabel(source) {
+  if (source.lastStatus === 'error') return 'error';
+  if (source.lastStatus === 'idle') return 'idle';
+  if (source.lastStatus === 'success') return 'success';
+  return 'idle';
 }
 
 function SourceOpportunityLine({ opp }) {
   const pill = platformPillClass(opp.platform);
   const cat = CATEGORY_BADGE[opp.category] || CATEGORY_BADGE.assistance;
+  const pct = scorePercent(opp);
 
   return (
     <div className="group flex flex-col gap-2 rounded-xl border border-slate-200/80 bg-white px-4 py-3 transition hover:border-blue-300 hover:shadow-sm dark:border-slate-700 dark:bg-slate-900/50 sm:flex-row sm:items-center">
@@ -47,6 +107,9 @@ function SourceOpportunityLine({ opp }) {
           <span>{opp.organization || '—'}</span>
           <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${cat}`}>
             {opp.category?.replace(/_/g, ' ')}
+          </span>
+          <span className="font-semibold text-blue-800 dark:text-blue-200">
+            {pct}% M-ECAL
           </span>
         </div>
       </div>
@@ -70,25 +133,144 @@ function SourceOpportunityLine({ opp }) {
   );
 }
 
+function SourceCard({ source, expanded, onToggleOpen, onToggleEnabled, onScan, scanning, isAdmin }) {
+  const sourceOpps = source.sampleOffers || [];
+  const isOpen = expanded === source._id;
+  const count = source.relevantCount ?? source.opportunitiesCount ?? 0;
+  const scanned = source.lastScrapedAt ? format(new Date(source.lastScrapedAt), 'dd MMM yyyy HH:mm', { locale: fr }) : 'Jamais';
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-md transition hover:shadow-lg dark:border-slate-700 dark:bg-slate-900/70">
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="font-bold text-slate-900 dark:text-white">{source.name}</h2>
+              <HealthBadge health={source.health} />
+            </div>
+            <p className="mt-1 text-sm text-slate-500">{source.description}</p>
+            {source.url ? (
+              <a
+                className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:underline"
+                href={source.url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {source.url}
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            onClick={() => onToggleEnabled(source)}
+            className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${
+              source.enabled
+                ? 'bg-emerald-500/15 text-emerald-700 ring-1 ring-emerald-500/30'
+                : 'bg-slate-100 text-slate-500'
+            }`}
+          >
+            {source.enabled ? 'Actif' : 'Inactif'}
+          </button>
+        </div>
+
+        {source.enabled === false && source.inactiveReason ? (
+          <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-300">
+            <p>{source.inactiveReason}</p>
+            <button
+              type="button"
+              onClick={() => onToggleEnabled(source)}
+              className="mt-2 font-bold text-blue-700 hover:underline dark:text-blue-300"
+            >
+              Réactiver cette source
+            </button>
+          </div>
+        ) : null}
+
+        {source.lastStatus === 'error' && source.lastErrorMessage ? (
+          <p className="mt-3 text-xs font-medium text-red-700 dark:text-red-300">{source.lastErrorMessage}</p>
+        ) : null}
+
+        <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+          <span className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
+            <b className="text-slate-900 dark:text-white">{source.frequencyHours}h</b>
+            <br />
+            <span className="text-xs text-slate-500">Fréquence</span>
+          </span>
+          <span className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
+            <b className="text-slate-900 dark:text-white">{count}</b>
+            <br />
+            <span className="text-xs text-slate-500">En ligne RDC</span>
+          </span>
+          <span className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
+            <b className="truncate text-slate-900 dark:text-white">{statusLabel(source)}</b>
+            <br />
+            <span className="text-xs text-slate-500">Statut scan</span>
+          </span>
+          <span className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
+            <b className="text-xs font-semibold text-slate-900 dark:text-white">{scanned}</b>
+            <br />
+            <span className="text-xs text-slate-500">Dernier scan</span>
+          </span>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          {isAdmin && source.scraperKey ? (
+            <button
+              type="button"
+              disabled={scanning}
+              onClick={() => onScan(source)}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-60"
+            >
+              <Play className={`h-3 w-3 ${scanning ? 'animate-pulse' : ''}`} />
+              {scanning ? 'Scan…' : 'Scanner cette source maintenant'}
+            </button>
+          ) : null}
+          {count > 0 ? (
+            <button
+              type="button"
+              onClick={() => onToggleOpen(source._id)}
+              className="text-xs font-bold text-blue-600 hover:text-blue-800"
+            >
+              {isOpen ? 'Masquer' : 'Voir'} {count} offre(s) logistique RDC →
+            </button>
+          ) : (
+            <p className="text-xs text-slate-400">
+              {source.lastStatus === 'idle'
+                ? 'Scan OK mais 0 résultat brut, ou aucun avis pertinent après filtres.'
+                : 'Aucune offre pertinente (filtres M-ECAL / RDC) pour cette source.'}
+            </p>
+          )}
+        </div>
+      </div>
+      {isOpen && sourceOpps.length > 0 ? (
+        <div className="space-y-2 border-t border-slate-100 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-950/50">
+          {sourceOpps.map((opp) => (
+            <SourceOpportunityLine key={opp._id} opp={opp} />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function Sources() {
   const { t } = useI18n();
+  const { user } = useApp();
+  const isAdmin = ['Admin', 'admin'].includes(user?.role);
   const [sources, setSources] = useState([]);
   const [opportunities, setOpportunities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(null);
+  const [scanningId, setScanningId] = useState(null);
 
   const load = async () => {
     setLoading(true);
     try {
-      const [srcRes, oppRes] = await Promise.all([
-        api.get('/api/sources'),
-        api.get('/api/opportunities', { params: { limit: 80, page: 1 } })
-      ]);
-      setSources(srcRes.data);
-      const rdc = (oppRes.data?.data || []).filter(
-        (o) => isRdcOpportunity(o) && o.locationStatus !== 'hors_rdc'
-      );
-      setOpportunities(rdc);
+      const { data } = await api.get('/api/sources');
+      const list = Array.isArray(data) ? data : data.sources || [];
+      setSources(list);
+      setOpportunities(Array.isArray(data?.opportunities) ? data.opportunities : []);
     } catch {
       toast.error('Impossible de charger les sources');
     } finally {
@@ -105,21 +287,25 @@ export default function Sources() {
     load();
   };
 
-  const byPlatform = useMemo(() => {
-    const map = {};
-    for (const opp of opportunities) {
-      const key = opp.platform || 'Other';
-      if (!map[key]) map[key] = [];
-      map[key].push(opp);
+  const scanOne = async (source) => {
+    if (!isAdmin) return;
+    setScanningId(source._id);
+    try {
+      await api.post(`/api/sources/${source._id}/scrape`);
+      toast.success(`Scan ${source.name} lancé`);
+      await load();
+    } catch (e) {
+      toast.error(e.response?.data?.message || e.message);
+    } finally {
+      setScanningId(null);
     }
-    return map;
-  }, [opportunities]);
+  };
 
-  const getSourceOpps = (source) =>
-    opportunities.filter((o) => matchSourceToPlatform(source, o.platform)).slice(0, 8);
+  const groups = useMemo(() => groupSources(sources), [sources]);
+  const relevantTotal = opportunities.length;
 
   return (
-    <div className="space-y-8">
+    <div className="page-shell space-y-8">
       <section className="mecal-hero-dashboard relative overflow-hidden rounded-3xl px-6 py-7 text-white shadow-xl md:px-8">
         <div className="pointer-events-none absolute -right-16 top-0 h-40 w-40 rounded-full bg-cyan-400/20 blur-3xl" />
         <div className="relative flex flex-wrap items-end justify-between gap-4">
@@ -147,8 +333,8 @@ export default function Sources() {
 
       <div className="flex flex-wrap gap-3 rounded-2xl border border-slate-200 bg-white/90 p-4 dark:border-slate-700 dark:bg-slate-900/60">
         <div className="rounded-xl bg-emerald-50 px-4 py-2 dark:bg-emerald-950/40">
-          <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{opportunities.length}</p>
-          <p className="text-xs font-semibold uppercase text-emerald-600">Offres RDC logistique</p>
+          <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{relevantTotal}</p>
+          <p className="text-xs font-semibold uppercase text-emerald-600">Offres RDC logistique (filtrées)</p>
         </div>
         <div className="rounded-xl bg-blue-50 px-4 py-2 dark:bg-blue-950/40">
           <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">{sources.filter((s) => s.enabled).length}</p>
@@ -156,92 +342,31 @@ export default function Sources() {
         </div>
         <div className="rounded-xl bg-violet-50 px-4 py-2 dark:bg-violet-950/40">
           <p className="text-2xl font-bold text-violet-700 dark:text-violet-300">
-            {Object.keys(byPlatform).length}
+            {sources.filter((s) => (s.relevantCount || 0) > 0).length}
           </p>
-          <p className="text-xs font-semibold uppercase text-violet-600">Plateformes avec offres</p>
+          <p className="text-xs font-semibold uppercase text-violet-600">Sources avec offres pertinentes</p>
         </div>
       </div>
 
-      <p className="rounded-xl border border-purple-100 bg-purple-50 px-4 py-3 text-sm text-purple-800 dark:border-purple-900 dark:bg-purple-950/40 dark:text-purple-200">
-        🤖 Utilisez l&apos;icône <strong>Agent IA</strong> en bas à droite pour rechercher des offres, générer un CV ou postuler.
-      </p>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        {sources.map((source) => {
-          const sourceOpps = getSourceOpps(source);
-          const isOpen = expanded === source._id;
-          return (
-            <div
-              key={source._id}
-              className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-md transition hover:shadow-lg dark:border-slate-700 dark:bg-slate-900/70"
-            >
-              <div className="p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h2 className="font-bold text-slate-900 dark:text-white">{source.name}</h2>
-                    <p className="mt-1 text-sm text-slate-500">{source.description}</p>
-                    <a
-                      className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:underline"
-                      href={source.url}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {source.url}
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => toggle(source)}
-                    className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${
-                      source.enabled
-                        ? 'bg-emerald-500/15 text-emerald-700 ring-1 ring-emerald-500/30'
-                        : 'bg-slate-100 text-slate-500'
-                    }`}
-                  >
-                    {source.enabled ? 'Actif' : 'Inactif'}
-                  </button>
-                </div>
-                <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
-                  <span className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
-                    <b className="text-slate-900 dark:text-white">{source.frequencyHours}h</b>
-                    <br />
-                    <span className="text-xs text-slate-500">Fréquence</span>
-                  </span>
-                  <span className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
-                    <b className="text-slate-900 dark:text-white">{sourceOpps.length || source.opportunitiesCount}</b>
-                    <br />
-                    <span className="text-xs text-slate-500">En ligne RDC</span>
-                  </span>
-                  <span className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
-                    <b className="truncate text-slate-900 dark:text-white">{source.lastStatus}</b>
-                    <br />
-                    <span className="text-xs text-slate-500">Statut</span>
-                  </span>
-                </div>
-                {sourceOpps.length > 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => setExpanded(isOpen ? null : source._id)}
-                    className="mt-4 text-xs font-bold text-blue-600 hover:text-blue-800"
-                  >
-                    {isOpen ? 'Masquer' : 'Voir'} {sourceOpps.length} offre(s) logistique RDC →
-                  </button>
-                ) : (
-                  <p className="mt-4 text-xs text-slate-400">Aucune offre récente indexée pour cette source.</p>
-                )}
-              </div>
-              {isOpen && sourceOpps.length > 0 ? (
-                <div className="space-y-2 border-t border-slate-100 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-950/50">
-                  {sourceOpps.map((opp) => (
-                    <SourceOpportunityLine key={opp._id} opp={opp} />
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          );
-        })}
-      </div>
+      {groups.map((group) => (
+        <section key={group.id} className="space-y-3">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">{group.title}</h2>
+          <div className="grid gap-4 lg:grid-cols-2">
+            {group.items.map((source) => (
+              <SourceCard
+                key={source._id}
+                source={source}
+                expanded={expanded}
+                onToggleOpen={(id) => setExpanded((cur) => (cur === id ? null : id))}
+                onToggleEnabled={toggle}
+                onScan={scanOne}
+                scanning={scanningId === source._id}
+                isAdmin={isAdmin}
+              />
+            ))}
+          </div>
+        </section>
+      ))}
 
       <section>
         <div className="mb-4 flex items-center justify-between gap-4">
@@ -256,7 +381,7 @@ export default function Sources() {
           <p className="text-slate-500">Chargement…</p>
         ) : opportunities.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-slate-300 py-12 text-center text-slate-500">
-            Aucune opportunité RDC indexée. Lancez une collecte via l&apos;Agent IA.
+            Aucune opportunité RDC indexée après filtres. Lancez une collecte via l&apos;Agent IA.
           </p>
         ) : (
           <div className="space-y-2">
@@ -265,12 +390,6 @@ export default function Sources() {
             ))}
           </div>
         )}
-        {opportunities[0]?.scrapedAt ? (
-          <p className="mt-3 text-xs text-slate-400">
-            Dernière indexation :{' '}
-            {format(new Date(opportunities[0].scrapedAt), 'PPpp', { locale: fr })}
-          </p>
-        ) : null}
       </section>
     </div>
   );

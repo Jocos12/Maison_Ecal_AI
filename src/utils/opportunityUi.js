@@ -28,6 +28,8 @@ export const PLATFORM_PILL = {
   UNGM: 'bg-blue-100 text-blue-800 ring-blue-200',
   DevEx: 'bg-teal-100 text-teal-800 ring-teal-200',
   AchatPublicRDC: 'bg-rose-100 text-rose-800 ring-rose-200',
+  SIGMAP: 'bg-fuchsia-100 text-fuchsia-800 ring-fuchsia-200',
+  ARSP: 'bg-pink-100 text-pink-800 ring-pink-200',
   HDX: 'bg-cyan-100 text-cyan-800 ring-cyan-200',
   WorldBank: 'bg-emerald-100 text-emerald-800 ring-emerald-200',
   AfDB: 'bg-lime-100 text-lime-800 ring-lime-200',

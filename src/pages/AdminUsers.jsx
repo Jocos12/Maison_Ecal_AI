@@ -358,7 +358,7 @@ export default function AdminUsers() {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 px-1 sm:px-0">
+    <div className="page-shell space-y-6 px-1 sm:px-0">
       <header className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex items-start gap-4">

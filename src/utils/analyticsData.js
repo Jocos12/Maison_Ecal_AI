@@ -203,25 +203,25 @@ export function buildKpis({ opportunities = [], applications = [], messages = []
       label: 'Offres collectées',
       value: String(collectedThisMonth || opportunities.length),
       sub: 'Ce mois',
-      icon: '🔍'
+      icon: 'search'
     },
     {
       label: 'Offres sauvegardées',
       value: String(savedCount),
       sub: lastWeekSaved ? `+${lastWeekSaved} dernières collectes` : 'Actives',
-      icon: '💾'
+      icon: 'save'
     },
     {
       label: 'Candidatures',
       value: String(applications.length),
       sub: `${pendingApps} en attente`,
-      icon: '📬'
+      icon: 'inbox'
     },
     {
       label: 'Messages clients',
       value: String(messages.length),
       sub: `${unreadMsgs} non lus`,
-      icon: '✉️'
+      icon: 'mail'
     }
   ];
 }

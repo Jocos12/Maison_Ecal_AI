@@ -20,6 +20,19 @@ import { api } from '../api/client.js';
 import { useI18n } from '../context/I18nContext.jsx';
 import { openMecalAgent } from '../components/agent/AIAgentFloat.jsx';
 import {
+  AlertTriangle,
+  BarChart3,
+  Bot,
+  CalendarDays,
+  Clock,
+  Globe,
+  Inbox,
+  Mail,
+  Save,
+  Search,
+  TrendingUp
+} from 'lucide-react';
+import {
   buildApplicationStatusData,
   buildClientMessagesData,
   buildJobsFoundData,
@@ -33,6 +46,22 @@ import {
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 const EMPTY_CHART = [{ label: '—', value: 0 }];
+
+const KPI_ICONS = {
+  search: Search,
+  save: Save,
+  inbox: Inbox,
+  mail: Mail
+};
+
+function SectionHeading({ icon: Icon, children, className = 'mb-4' }) {
+  return (
+    <h3 className={`flex items-center gap-2 font-semibold text-gray-700 dark:text-slate-200 ${className}`}>
+      <Icon className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" strokeWidth={2} aria-hidden />
+      {children}
+    </h3>
+  );
+}
 
 export default function Analytics() {
   const { t } = useI18n();
@@ -119,9 +148,12 @@ export default function Analytics() {
   }, []);
 
   return (
-    <div className="min-h-screen space-y-6 bg-gray-50 p-1 dark:bg-slate-950 md:p-2">
+    <div className="page-shell min-h-0 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">📊 {t('pages.analytics.title')}</h1>
+        <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-800 dark:text-white">
+          <BarChart3 className="h-6 w-6 text-blue-600" strokeWidth={2} aria-hidden />
+          {t('pages.analytics.title')}
+        </h1>
         <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">{t('pages.analytics.subtitle')}</p>
         {loading ? (
           <p className="mt-2 text-xs text-purple-600">{t('common.loading')}</p>
@@ -135,7 +167,10 @@ export default function Analytics() {
             className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900"
           >
             <div className="flex items-center justify-between">
-              <span className="text-2xl">{kpi.icon}</span>
+              {(() => {
+                const Icon = KPI_ICONS[kpi.icon] || Search;
+                return <Icon className="h-6 w-6 text-blue-600" strokeWidth={2} aria-hidden />;
+              })()}
               <span className="text-xs text-gray-400">{kpi.sub}</span>
             </div>
             <p className="mt-2 text-3xl font-bold text-gray-800 dark:text-white">{kpi.value}</p>
@@ -146,9 +181,7 @@ export default function Analytics() {
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-          <h3 className="mb-4 font-semibold text-gray-700 dark:text-slate-200">
-            📈 Offres collectées vs sauvegardées
-          </h3>
+          <SectionHeading icon={TrendingUp}>Offres collectées vs sauvegardées</SectionHeading>
           <ResponsiveContainer width="100%" height={220}>
             <AreaChart data={jobsFoundData.length ? jobsFoundData : [{ date: '—', found: 0, saved: 0 }]}>
               <defs>
@@ -173,7 +206,7 @@ export default function Analytics() {
         </div>
 
         <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-          <h3 className="mb-4 font-semibold text-gray-700 dark:text-slate-200">📬 Statut des candidatures</h3>
+          <SectionHeading icon={Inbox}>Statut des candidatures</SectionHeading>
           <div className="flex items-center gap-4">
             <ResponsiveContainer width="55%" height={220}>
               <PieChart>
@@ -210,7 +243,7 @@ export default function Analytics() {
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-          <h3 className="mb-4 font-semibold text-gray-700 dark:text-slate-200">⚠️ Raisons de rejet des offres</h3>
+          <SectionHeading icon={AlertTriangle}>Raisons de rejet des offres</SectionHeading>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={rejectionReasonsData.length ? rejectionReasonsData : EMPTY_CHART} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -227,7 +260,7 @@ export default function Analytics() {
         </div>
 
         <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-          <h3 className="mb-4 font-semibold text-gray-700 dark:text-slate-200">🌐 Performance par source</h3>
+          <SectionHeading icon={Globe}>Performance par source</SectionHeading>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={sourcePerformanceData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -244,7 +277,7 @@ export default function Analytics() {
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-          <h3 className="mb-4 font-semibold text-gray-700 dark:text-slate-200">✉️ Messages clients par mois</h3>
+          <SectionHeading icon={Mail}>Messages clients par mois</SectionHeading>
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={clientMessagesData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -268,7 +301,7 @@ export default function Analytics() {
         </div>
 
         <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-          <h3 className="mb-4 font-semibold text-gray-700 dark:text-slate-200">📅 Activité hebdomadaire</h3>
+          <SectionHeading icon={CalendarDays}>Activité hebdomadaire</SectionHeading>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={weeklyActivityData.length ? weeklyActivityData : EMPTY_CHART}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -285,9 +318,7 @@ export default function Analytics() {
       </div>
 
       <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-        <h3 className="mb-4 font-semibold text-gray-700 dark:text-slate-200">
-          ⏳ Candidatures en attente de réponse
-        </h3>
+        <SectionHeading icon={Clock}>Candidatures en attente de réponse</SectionHeading>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -326,9 +357,10 @@ export default function Analytics() {
                       <button
                         type="button"
                         onClick={() => handleRelancerIA(row)}
-                        className="text-xs text-purple-600 hover:underline dark:text-purple-400"
+                        className="inline-flex items-center gap-1 text-xs text-purple-600 hover:underline dark:text-purple-400"
                       >
-                        🤖 Relancer IA
+                        <Bot className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                        Relancer IA
                       </button>
                     </td>
                   </tr>

@@ -3,20 +3,7 @@ import toast from 'react-hot-toast';
 import { Bot, ExternalLink, Loader2, Send, Sparkles, User, X } from 'lucide-react';
 import { api } from '../../api/client.js';
 import { rankOffersLocally } from '../../utils/localOfferRank.js';
-
-function renderTextLite(text = '') {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return (
-        <strong key={i} className="font-semibold">
-          {part.slice(2, -2)}
-        </strong>
-      );
-    }
-    return <span key={i}>{part}</span>;
-  });
-}
+import { AgentMarkdown } from '../../utils/agentMarkdown.jsx';
 
 const QUICK_QUESTIONS = [
   'Cette offre convient-elle à M-ECAL ?',
@@ -210,7 +197,11 @@ export default function LinkedInOfferChatModal({ open, offer, offers = [], onClo
                       : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100'
                   }`}
                 >
-                  <p className="whitespace-pre-wrap">{renderTextLite(msg.content)}</p>
+                  {msg.role === 'assistant' ? (
+                    <AgentMarkdown text={msg.content} />
+                  ) : (
+                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                  )}
                   {msg.jobs?.length > 0 ? (
                     <div className="mt-3 space-y-2">
                       <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">

@@ -24,7 +24,7 @@ export default function AgentHistoryPanel({
         <button
           type="button"
           onClick={onClose}
-          className="rounded-lg p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-slate-800 lg:hidden"
+          className="rounded-lg p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-slate-800"
           aria-label={t('agent.closeHistory')}
         >
           <X className="h-4 w-4" />

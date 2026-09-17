@@ -126,7 +126,7 @@ export default function Settings({ compact = false }) {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 pb-10">
+    <div className="page-shell space-y-6 pb-10">
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 p-6 text-white shadow-xl shadow-blue-500/20">
         <div className="relative z-10 flex flex-wrap items-start justify-between gap-4">
           <div>

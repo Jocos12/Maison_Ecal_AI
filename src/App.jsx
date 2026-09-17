@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import { AppProvider } from './context/AppContext.jsx';
 import { I18nProvider } from './context/I18nContext.jsx';
 import { ThemeProvider } from './context/ThemeContext.jsx';
+import { VoiceModeProvider } from './context/VoiceModeContext.jsx';
 import { PrivateLayout } from './layouts/PrivateLayout.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
 import SignupPage from './pages/auth/SignupPage.jsx';
@@ -13,6 +14,7 @@ import PendingApprovalPage from './pages/auth/PendingApprovalPage.jsx';
 import AdminUsers from './pages/AdminUsers.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Opportunities from './pages/Opportunities.jsx';
+import StrictMecal from './pages/StrictMecal.jsx';
 import Applications from './pages/Applications.jsx';
 import Settings from './pages/Settings.jsx';
 import Sources from './pages/Sources.jsx';
@@ -31,6 +33,7 @@ export default function App() {
     <ThemeProvider>
       <AppProvider>
         <I18nProvider>
+          <VoiceModeProvider>
           <I18nUserSync />
           <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
           <Toaster
@@ -52,6 +55,7 @@ export default function App() {
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/opportunities" element={<Opportunities />} />
+              <Route path="/strict-mecal" element={<StrictMecal />} />
               <Route path="/applications" element={<Applications />} />
               <Route path="/sources" element={<Sources />} />
               <Route path="/categories" element={<Categories />} />
@@ -68,6 +72,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
           </BrowserRouter>
+          </VoiceModeProvider>
         </I18nProvider>
       </AppProvider>
     </ThemeProvider>

@@ -5,8 +5,11 @@ import Sidebar from '../components/layout/Sidebar.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { Loader2 } from 'lucide-react';
 import { syncAppNotifications } from '../utils/syncAppNotifications.js';
+import { pollMatchAlerts } from '../utils/pollMatchAlerts.js';
 import { getAlertSettings, startAlertScheduler } from '../services/alertService.js';
 import AIAgentFloat from '../components/agent/AIAgentFloat.jsx';
+import VoiceModeListener from '../components/voice/VoiceModeListener.jsx';
+import ApplicationConfirmGate from '../components/voice/ApplicationConfirmGate.jsx';
 
 export function PrivateLayout() {
   const { user, authLoading } = useApp();
@@ -19,7 +22,13 @@ export function PrivateLayout() {
   useEffect(() => {
     if (!user?.id) return undefined;
     syncAppNotifications().catch(() => {});
-    const interval = window.setInterval(() => {
+    pollMatchAlerts().catch(() => {});
+    const pollInterval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        pollMatchAlerts().catch(() => {});
+      }
+    }, 45 * 1000);
+    const syncInterval = window.setInterval(() => {
       if (document.visibilityState === 'visible') {
         syncAppNotifications().catch(() => {});
       }
@@ -27,11 +36,13 @@ export function PrivateLayout() {
     const onVisible = () => {
       if (document.visibilityState === 'visible') {
         syncAppNotifications().catch(() => {});
+        pollMatchAlerts().catch(() => {});
       }
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => {
-      window.clearInterval(interval);
+      window.clearInterval(pollInterval);
+      window.clearInterval(syncInterval);
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [user?.id]);
@@ -59,7 +70,7 @@ export function PrivateLayout() {
   return (
     <div className="mecal-hero-bg flex h-screen flex-col overflow-hidden">
       <Navbar onMenuToggle={() => setMobileNavOpen((v) => !v)} />
-      <div className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 overflow-hidden">
+      <div className="mx-auto flex min-h-0 w-full max-w-[1760px] flex-1 overflow-hidden">
         {mobileNavOpen ? (
           <button
             type="button"
@@ -78,6 +89,8 @@ export function PrivateLayout() {
         </main>
       </div>
       <AIAgentFloat />
+      <VoiceModeListener />
+      <ApplicationConfirmGate />
     </div>
   );
 }
