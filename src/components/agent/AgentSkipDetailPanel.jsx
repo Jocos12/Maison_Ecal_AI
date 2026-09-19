@@ -53,7 +53,7 @@ const CODE_FILTERS = {
 };
 
 function scoreLabel(score) {
-  if (score == null || score === '') return 'Hors périmètre — non noté';
+  if (score == null || score === '') return 'Hors périmètre, non noté';
   return `Score ${score}%`;
 }
 
@@ -437,7 +437,7 @@ Termine par: Recommandation finale: OUI / NON / PEUT-ÊTRE`;
             )}
             {visible < filtered.length ? (
               <p className="py-2 text-center text-xs text-slate-400">
-                {shown.length} / {filtered.length} — faites défiler pour charger la suite
+                {shown.length} / {filtered.length}, faites défiler pour charger la suite
               </p>
             ) : null}
           </div>

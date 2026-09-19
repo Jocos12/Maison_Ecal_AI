@@ -1,17 +1,5 @@
 import React, { createContext, useContext, useMemo, useCallback, useEffect } from 'react';
-import { en } from '../locales/en.js';
-import { fr } from '../locales/fr.js';
-import { sw } from '../locales/sw.js';
-import { enExtended } from '../locales/en-ext.js';
-import { frExtended } from '../locales/fr-ext.js';
-import { swExtended } from '../locales/sw-ext.js';
-import { mergeLocales } from '../locales/mergeLocales.js';
-
-const dict = {
-  en: mergeLocales(en, enExtended),
-  fr: mergeLocales(fr, frExtended),
-  sw: mergeLocales(sw, swExtended)
-};
+import { dictionaries as dict } from '../locales/dictionaries.js';
 
 const I18nContext = createContext({
   lang: 'fr',

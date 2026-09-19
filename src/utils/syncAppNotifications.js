@@ -56,7 +56,7 @@ export async function syncAppNotifications() {
         if (!knownJobs.has(opp._id) && isLogisticsJobOpportunity(opp)) {
           upsertNotification({
             id: `job-watch-${opp._id}`,
-            title: `🔔 Emploi logistique RDC — ${jobPlatformLabel(opp)}`,
+            title: `Emploi logistique RDC (${jobPlatformLabel(opp)})`,
             body: opp.title || 'Nouvelle offre détectée par la veille M-ECAL.',
             href: '/assistant-emploi?section=linkedin',
             type: 'emploi-rdc'

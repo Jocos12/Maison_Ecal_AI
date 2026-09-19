@@ -55,16 +55,16 @@ const inputCls =
   'w-full rounded-lg border border-slate-200/80 bg-white px-3 py-[9px] text-sm text-slate-800 transition-all duration-200 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600/80 dark:bg-slate-900/50 dark:text-slate-100';
 
 function formatDate(value) {
-  if (!value) return '—';
+  if (!value) return 'n/d';
   const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '—';
+  if (Number.isNaN(d.getTime())) return 'n/d';
   return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
 }
 
 function formatDateTime(value) {
-  if (!value) return '—';
+  if (!value) return 'n/d';
   const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '—';
+  if (Number.isNaN(d.getTime())) return 'n/d';
   return d.toLocaleString('fr-FR', {
     day: '2-digit',
     month: 'short',
@@ -263,7 +263,7 @@ export default function ApplicationDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-[2px]"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-[#0e1c33]/60 p-4 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       onClick={(e) => {
@@ -271,7 +271,7 @@ export default function ApplicationDetailModal({
       }}
     >
       <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-        <div className="flex-shrink-0 bg-gradient-to-r from-[#1e3a5f] to-blue-700 px-5 py-4 text-white">
+        <div className="flex-shrink-0 bg-[#24478a] px-5 py-4 text-white">
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
               <span className={`mb-2 inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${cfg.badge}`}>
@@ -280,8 +280,15 @@ export default function ApplicationDetailModal({
               <h2 className="line-clamp-2 text-lg font-bold leading-snug">{opp.title || 'Candidature'}</h2>
               {opp.organization ? <p className="mt-1 text-sm text-blue-100/90">{opp.organization}</p> : null}
             </div>
-            <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-white/80 hover:bg-white/10" aria-label="Fermer">
-              <X className="h-5 w-5" />
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Fermer"
+              title="Fermer"
+              className="mecal-x-pop group relative grid h-9 w-9 flex-none place-items-center rounded-full bg-red-500 text-white shadow-lg shadow-red-950/30 ring-2 ring-white/80 transition duration-300 hover:rotate-90 hover:scale-110 hover:bg-red-600 focus:outline-none focus-visible:ring-4 focus-visible:ring-red-300 active:scale-95"
+            >
+              <span className="absolute inset-0 rounded-full bg-red-400 opacity-0 group-hover:animate-ping" aria-hidden="true" />
+              <X className="relative h-[18px] w-[18px]" strokeWidth={2.6} />
             </button>
           </div>
           <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-blue-100">
@@ -347,7 +354,7 @@ export default function ApplicationDetailModal({
                     <input value={subject} onChange={(e) => setSubject(e.target.value)} className={`${inputCls} mt-1`} />
                   </label>
                   <p className="text-xs text-slate-500">
-                    {t('applications.emailAttachment')}: <strong>{preview?.attachmentName || '—'}</strong>
+                    {t('applications.emailAttachment')}: <strong>{preview?.attachmentName || 'n/d'}</strong>
                   </p>
                   <label className="block text-xs font-semibold uppercase text-slate-500">
                     {t('applications.emailBody')}
@@ -515,7 +522,7 @@ export default function ApplicationDetailModal({
                           className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-800/50"
                         >
                           <p className="font-semibold text-slate-700 dark:text-slate-200">
-                            {item.date ? formatDate(item.date) : '—'}
+                            {item.date ? formatDate(item.date) : 'n/d'}
                           </p>
                           {item.note ? <p className="mt-0.5 text-slate-600 dark:text-slate-300">{item.note}</p> : null}
                         </li>
@@ -605,7 +612,7 @@ export default function ApplicationDetailModal({
                         key={`${doc.name}-${i}`}
                         className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/50"
                       >
-                        <span className="rounded bg-[#1e3a5f] px-1.5 py-0.5 text-[9px] font-bold text-white">
+                        <span className="rounded bg-[#15294a] px-1.5 py-0.5 text-[9px] font-bold text-white">
                           {fileKind(doc.name)}
                         </span>
                         <p className="min-w-0 flex-1 truncate text-sm font-medium text-slate-800 dark:text-slate-100">{doc.name}</p>

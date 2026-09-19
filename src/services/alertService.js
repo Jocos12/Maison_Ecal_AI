@@ -248,7 +248,7 @@ export async function checkNewJobsAndAlert(settings = getAlertSettings()) {
 
   if (newJobs.length > 0) {
     if (settings.browserNotify && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-      new Notification(`🔔 M-ECAL — ${newJobs.length} nouveau(x) job(s) logistique`, {
+      new Notification(`🔔 M-ECAL, ${newJobs.length} nouveau(x) job(s) logistique`, {
         body: newJobs
           .slice(0, 3)
           .map((j) => `• ${j.title}`)
@@ -260,7 +260,7 @@ export async function checkNewJobsAndAlert(settings = getAlertSettings()) {
     for (const job of newJobs) {
       upsertNotification({
         id: `alert-job-${job.id}`,
-        title: `🔔 Nouveau job logistique — ${job.source}`,
+        title: `🔔 Nouveau job logistique, ${job.source}`,
         body: job.title,
         href: job.href || '/opportunities',
         type: 'emploi-rdc'

@@ -4,16 +4,11 @@ import { Bot, ExternalLink, Loader2, Send, Sparkles, User, X } from 'lucide-reac
 import { api } from '../../api/client.js';
 import { rankOffersLocally } from '../../utils/localOfferRank.js';
 import { AgentMarkdown } from '../../utils/agentMarkdown.jsx';
+import { useUiLocale } from '../../hooks/useUiLocale.js';
 
-const QUICK_QUESTIONS = [
-  'Cette offre convient-elle à M-ECAL ?',
-  'Comment répondre à cet appel ?',
-  'Trouve des emplois logistique similaires en RDC',
-  'Quels sont les points forts à mettre en avant ?',
-  'Dois-je postuler ou surveiller ?'
-];
+const QUICK_QUESTION_KEYS = ['q1', 'q2', 'q3', 'q4', 'q5'];
 
-function JobResultCard({ job }) {
+function JobResultCard({ job, t }) {
   if (!job?.title) return null;
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-3 text-xs dark:border-slate-700 dark:bg-slate-900">
@@ -28,7 +23,7 @@ function JobResultCard({ job }) {
           rel="noreferrer"
           className="mt-2 inline-flex items-center gap-1 font-semibold text-[#0A66C2]"
         >
-          Voir l&apos;offre
+          {t('linkedin.chat.viewOffer')}
           <ExternalLink className="h-3 w-3" />
         </a>
       ) : null}
@@ -37,6 +32,8 @@ function JobResultCard({ job }) {
 }
 
 export default function LinkedInOfferChatModal({ open, offer, offers = [], onClose }) {
+  const { t } = useUiLocale();
+  const quickQuestions = QUICK_QUESTION_KEYS.map((k) => t(`linkedin.chat.${k}`));
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -94,25 +91,25 @@ export default function LinkedInOfferChatModal({ open, offer, offers = [], onClo
           ...prev,
           {
             role: 'assistant',
-            content: data.reply || 'Réponse indisponible.',
+            content: data.reply || t('linkedin.chat.noReply'),
             jobs: data.jobs || [],
             isSearch: data.isSearch
           }
         ]);
       } catch (e) {
-        toast.error(e.response?.data?.message || 'Erreur IA');
+        toast.error(e.response?.data?.message || t('linkedin.chat.error'));
         setChatMessages((prev) => [
           ...prev,
           {
             role: 'assistant',
-            content: 'Désolé, le conseiller IA est momentanément indisponible. Réessayez dans un instant.'
+            content: t('linkedin.chat.unavailable')
           }
         ]);
       } finally {
         setIsTyping(false);
       }
     },
-    [chatMessages, isTyping, offer, offers]
+    [chatMessages, isTyping, offer, offers, t]
   );
 
   if (!open) return null;
@@ -121,8 +118,8 @@ export default function LinkedInOfferChatModal({ open, offer, offers = [], onClo
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
       <button
         type="button"
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        aria-label="Fermer"
+        className="absolute inset-0 bg-slate-900/50"
+        aria-label={t('linkedin.close')}
         onClick={onClose}
       />
       <div
@@ -134,21 +131,23 @@ export default function LinkedInOfferChatModal({ open, offer, offers = [], onClo
           entered ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
         }`}
       >
-        <header className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 bg-gradient-to-r from-violet-600 to-[#0A66C2] px-5 py-4 text-white dark:border-slate-800">
-          <div className="min-w-0">
-            <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-white/80">
-              <Sparkles className="h-3.5 w-3.5" />
-              Conseiller IA M-ECAL
-            </p>
-            <h2 id="linkedin-ai-chat-title" className="mt-1 line-clamp-2 text-sm font-bold">
-              {offer?.title || 'Recherche emplois logistique RDC'}
-            </h2>
+        <header className="flex shrink-0 items-start justify-between gap-3 border-b border-violet-800 bg-violet-700 px-5 py-4 text-white">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="grid h-10 w-10 flex-none place-items-center rounded-xl bg-white text-violet-700">
+              <Sparkles className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-violet-100">{t('linkedin.chat.title')}</p>
+              <h2 id="linkedin-ai-chat-title" className="mt-1 break-words text-sm font-bold leading-snug">
+                {offer?.title || t('linkedin.chat.defaultSubject')}
+              </h2>
+            </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1.5 text-white/90 hover:bg-white/20"
-            aria-label="Fermer"
+            className="grid h-9 w-9 flex-none place-items-center rounded-xl bg-white/15 text-white transition hover:rotate-90 hover:bg-red-600"
+            aria-label={t('linkedin.close')}
           >
             <X className="h-5 w-5" />
           </button>
@@ -156,13 +155,13 @@ export default function LinkedInOfferChatModal({ open, offer, offers = [], onClo
 
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="flex shrink-0 flex-wrap gap-2 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
-            {QUICK_QUESTIONS.map((q) => (
+            {quickQuestions.map((q) => (
               <button
                 key={q}
                 type="button"
                 disabled={isTyping}
                 onClick={() => sendMessage(q)}
-                className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[11px] font-semibold text-violet-800 transition hover:bg-violet-100 disabled:opacity-50 dark:border-violet-900 dark:bg-violet-950/50 dark:text-violet-200"
+                className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-left text-[11px] font-semibold text-violet-800 transition hover:bg-violet-700 hover:text-white disabled:opacity-50 dark:border-violet-900 dark:bg-violet-950/50 dark:text-violet-200"
               >
                 {q}
               </button>
@@ -173,10 +172,7 @@ export default function LinkedInOfferChatModal({ open, offer, offers = [], onClo
             {chatMessages.length === 0 ? (
               <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center dark:border-slate-700">
                 <Bot className="mx-auto h-8 w-8 text-violet-500" />
-                <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-                  Posez vos questions sur cette offre ou demandez une recherche d&apos;emplois logistique
-                  en RDC (LinkedIn, ReliefWeb, UNjobs…).
-                </p>
+                <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{t('linkedin.chat.empty')}</p>
               </div>
             ) : null}
 
@@ -186,15 +182,15 @@ export default function LinkedInOfferChatModal({ open, offer, offers = [], onClo
                 className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 {msg.role === 'assistant' ? (
-                  <span className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/50">
-                    <Bot className="h-4 w-4 text-violet-600 dark:text-violet-300" />
+                  <span className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-700">
+                    <Bot className="h-4 w-4 text-white" />
                   </span>
                 ) : null}
                 <div
                   className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                     msg.role === 'user'
                       ? 'bg-[#0A66C2] text-white'
-                      : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100'
+                      : 'border border-violet-100 bg-violet-50/60 text-slate-800 dark:border-violet-900/50 dark:bg-slate-800 dark:text-slate-100'
                   }`}
                 >
                   {msg.role === 'assistant' ? (
@@ -205,10 +201,10 @@ export default function LinkedInOfferChatModal({ open, offer, offers = [], onClo
                   {msg.jobs?.length > 0 ? (
                     <div className="mt-3 space-y-2">
                       <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                        Offres trouvées
+                        {t('linkedin.chat.jobsFound')}
                       </p>
                       {msg.jobs.slice(0, 5).map((job, j) => (
-                        <JobResultCard key={`${job.sourceUrl}-${j}`} job={job} />
+                        <JobResultCard key={`${job.sourceUrl}-${j}`} job={job} t={t} />
                       ))}
                     </div>
                   ) : null}
@@ -224,7 +220,7 @@ export default function LinkedInOfferChatModal({ open, offer, offers = [], onClo
             {isTyping ? (
               <div className="flex items-center gap-2 text-sm text-slate-500">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                L&apos;IA analyse…
+                {t('linkedin.chat.thinking')}
               </div>
             ) : null}
             <div ref={bottomRef} />
@@ -241,14 +237,16 @@ export default function LinkedInOfferChatModal({ open, offer, offers = [], onClo
               <input
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Ex. Trouve des offres logisticien à Kinshasa…"
-                className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-900"
+                placeholder={t('linkedin.chat.placeholder')}
+                className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-violet-700 focus:ring-4 focus:ring-violet-700/15 dark:border-slate-700 dark:bg-slate-900"
                 disabled={isTyping}
               />
               <button
                 type="submit"
                 disabled={isTyping || !chatInput.trim()}
-                className="rounded-xl bg-violet-600 px-4 py-3 text-white transition hover:bg-violet-700 disabled:opacity-50"
+                className="rounded-xl bg-violet-700 px-4 py-3 text-white transition hover:bg-violet-800 disabled:opacity-50"
+                aria-label={t('linkedin.chat.send')}
+                title={t('linkedin.chat.send')}
               >
                 <Send className="h-4 w-4" />
               </button>

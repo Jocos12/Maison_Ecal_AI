@@ -67,7 +67,7 @@ export default function ApplyEmailPreviewModal({ opportunityId, onClose, onSent 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
       <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-        <div className="flex items-start justify-between bg-gradient-to-r from-[#1e3a5f] to-blue-700 px-5 py-4 text-white">
+        <div className="flex items-start justify-between bg-[#24478a] px-5 py-4 text-white">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-100">
               {t('applications.emailPreviewTitle')}
@@ -116,7 +116,7 @@ export default function ApplyEmailPreviewModal({ opportunityId, onClose, onSent 
                 />
               </label>
               <p className="text-xs text-slate-500">
-                {t('applications.emailAttachment')}: <strong>{preview?.attachmentName || '—'}</strong>
+                {t('applications.emailAttachment')}: <strong>{preview?.attachmentName || t('dashboard.marketNoData')}</strong>
               </p>
               <label className="block text-xs font-semibold uppercase text-slate-500">
                 {t('applications.emailBody')}

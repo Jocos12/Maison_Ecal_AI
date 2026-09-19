@@ -9,7 +9,6 @@ import LoginPage from './pages/auth/LoginPage.jsx';
 import SignupPage from './pages/auth/SignupPage.jsx';
 import VerifyOTPPage from './pages/auth/VerifyOTPPage.jsx';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage.jsx';
-import ResetPasswordPage from './pages/auth/ResetPasswordPage.jsx';
 import PendingApprovalPage from './pages/auth/PendingApprovalPage.jsx';
 import AdminUsers from './pages/AdminUsers.jsx';
 import Dashboard from './pages/Dashboard.jsx';
@@ -18,6 +17,7 @@ import StrictMecal from './pages/StrictMecal.jsx';
 import Applications from './pages/Applications.jsx';
 import Settings from './pages/Settings.jsx';
 import Sources from './pages/Sources.jsx';
+import Nrc from './pages/Nrc.jsx';
 import Categories from './pages/Categories.jsx';
 import Agent from './pages/Agent.jsx';
 import Analytics from './pages/Analytics.jsx';
@@ -49,7 +49,7 @@ export default function App() {
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/verify-otp" element={<VerifyOTPPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/reset-password" element={<Navigate to="/forgot-password" replace />} />
             <Route path="/pending-approval" element={<PendingApprovalPage />} />
             <Route element={<PrivateLayout />}>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -58,6 +58,7 @@ export default function App() {
               <Route path="/strict-mecal" element={<StrictMecal />} />
               <Route path="/applications" element={<Applications />} />
               <Route path="/sources" element={<Sources />} />
+              <Route path="/nrc" element={<Nrc />} />
               <Route path="/categories" element={<Categories />} />
               <Route path="/agent" element={<Agent />} />
               <Route path="/assistant-emploi" element={<JobAssistant />} />

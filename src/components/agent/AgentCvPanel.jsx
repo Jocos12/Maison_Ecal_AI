@@ -50,7 +50,7 @@ export default function AgentCvPanel({
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-bold text-slate-900 dark:text-white">Importer mon CV</p>
-                <p className="text-[11px] text-slate-500">PDF, DOCX ou TXT — extraction automatique de vos infos</p>
+                <p className="text-[11px] text-slate-500">PDF, DOCX ou TXT, extraction automatique de vos infos</p>
                 {cvMeta?.fileName ? (
                   <p className="mt-1 truncate text-[11px] font-semibold text-violet-700 dark:text-violet-300">
                     {cvMeta.fileName}

@@ -22,7 +22,7 @@ export function rankOffersLocally(offers = []) {
           ((o.aiAnalysis?.score ?? 0) > 1 ? 1 : 100)
       ),
       reason: isJob(o)
-        ? 'Offre emploi/recrutement — priorité haute'
+        ? 'Offre emploi/recrutement, priorité haute'
         : 'Mission logistique vérifiée RDC',
       action: isJob(o) ? 'postuler' : 'surveiller',
       offer: o

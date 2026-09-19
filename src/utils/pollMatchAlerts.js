@@ -46,7 +46,7 @@ export async function pollMatchAlerts() {
     upsertNotification({
       id: `match-${id}`,
       title: 'Nouvelle offre pertinente M-ECAL',
-      body: [n.title, n.organization].filter(Boolean).join(' — '),
+      body: [n.title, n.organization].filter(Boolean).join(', '),
       href,
       type: 'mecal-match',
       read: Boolean(n.readAt)

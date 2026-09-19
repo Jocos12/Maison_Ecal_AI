@@ -134,11 +134,11 @@ export function describeScrapeFailure(log = {}, t) {
 
 const FR_FALLBACK = {
   'dashboard.scrapeErrorTimeoutHint':
-    'Scan interrompu après {minutes} minutes — délai dépassé, probablement dû à un volume élevé d’images à analyser',
+    'Scan interrompu après {minutes} minutes, délai dépassé, probablement dû à un volume élevé d’images à analyser',
   'dashboard.scrapeErrorTimeoutHintGeneric':
-    'Scan interrompu — délai dépassé, probablement dû à un volume élevé d’images à analyser',
+    'Scan interrompu, délai dépassé, probablement dû à un volume élevé d’images à analyser',
   'dashboard.scrapeErrorRestartHint':
-    'Scan interrompu par un redémarrage du process — le serveur s’est arrêté (crash ou redémarrage) avant la fin de la collecte.',
+    'Scan interrompu par un redémarrage du process, le serveur s’est arrêté (crash ou redémarrage) avant la fin de la collecte.',
   'dashboard.scrapeErrorDatabaseHint': 'Impossible de joindre la base de données. {detail}',
   'dashboard.scrapeErrorDatabaseHintGeneric': 'Impossible de joindre la base de données.',
   'dashboard.scrapeErrorNetworkHint': 'Erreur réseau pendant la collecte. {detail}',

@@ -5,6 +5,8 @@ import { useI18n } from '../context/I18nContext.jsx';
 import FilterBar from '../components/opportunities/FilterBar.jsx';
 import OpportunityList from '../components/opportunities/OpportunityList.jsx';
 import OpportunityModal from '../components/opportunities/OpportunityModal.jsx';
+import Pagination from '../components/opportunities/Pagination.jsx';
+import { Briefcase, ClipboardCheck, Eye, Hourglass, Layers } from 'lucide-react';
 import { api } from '../api/client.js';
 import toast from 'react-hot-toast';
 import { getViewedOpportunityIds, markOpportunityViewed } from '../utils/opportunityUrgency.js';
@@ -122,7 +124,7 @@ export default function Opportunities() {
       const { data, status } = await api.post('/api/applications', {
         opportunity: opp._id,
         status: 'draft',
-        notes: `Candidature brouillon — ${opp.title}`
+        notes: `Candidature brouillon : ${opp.title}`
       });
       setAppliedIds((prev) => new Set([...prev, String(opp._id)]));
       toast.success(
@@ -137,34 +139,69 @@ export default function Opportunities() {
 
   const untreated = Math.max(0, total - appliedIds.size);
 
+  const hasFilters = Boolean(category || search || source || country || ville || status);
+  const resetFilters = () => {
+    setCategory('');
+    setSearch('');
+    setSource('');
+    setCountry('');
+    setVille('');
+    setStatus('');
+    setPage(1);
+    if (searchParams.get('search') || searchParams.get('category') || searchParams.get('status') || searchParams.get('ville') || searchParams.get('country') || searchParams.get('fit')) {
+      setSearchParams({});
+    }
+  };
+  const goToPage = (n) => {
+    setPage(n);
+    document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const onClose = () => {
     setModal(null);
     setSearchParams({});
   };
 
+  const kpis = [
+    { key: 'active', value: total, icon: Layers, tile: 'bg-emerald-100 text-emerald-700' },
+    { key: 'applied', value: appliedIds.size, icon: ClipboardCheck, tile: 'bg-violet-100 text-violet-700' },
+    { key: 'viewed', value: viewedCount, icon: Eye, tile: 'bg-sky-100 text-sky-700' },
+    { key: 'untreated', value: untreated, icon: Hourglass, tile: 'bg-amber-100 text-amber-700' }
+  ];
+
   return (
     <div className="page-shell space-y-6">
-      <section className="mecal-hero-dashboard relative overflow-hidden rounded-3xl px-6 py-7 text-white shadow-xl md:px-8">
-        <div className="pointer-events-none absolute -right-16 top-0 h-40 w-40 rounded-full bg-cyan-400/20 blur-3xl" />
-        <h1 className="mecal-title-shine text-2xl font-bold tracking-tight md:text-3xl">
-          {t('opportunities.title')}
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm text-blue-100/90">{t('opportunities.subtitle')}</p>
-        <div className="mt-4 flex flex-wrap gap-2 text-xs">
-          <span className="rounded-full bg-white/15 px-3 py-1 font-semibold">
-            {t('opportunities.counterActive', { count: total })}
-          </span>
-          <span className="rounded-full bg-white/15 px-3 py-1 font-semibold">
-            {t('opportunities.counterApplied', { count: appliedIds.size })}
-          </span>
-          <span className="rounded-full bg-white/15 px-3 py-1 font-semibold">
-            {t('opportunities.counterViewed', { count: viewedCount })}
-          </span>
-          <span className="rounded-full bg-amber-400/90 px-3 py-1 font-bold text-slate-900">
-            {t('opportunities.counterUntreated', { count: untreated })}
-          </span>
+      <section>
+        <div className="rounded-3xl bg-[#24478a] px-6 pb-16 pt-7 text-white shadow-lg md:px-8">
+          <div className="flex items-start gap-4">
+            <span className="grid h-12 w-12 flex-none place-items-center rounded-2xl bg-white text-[#24478a] shadow-sm">
+              <Briefcase className="h-6 w-6" aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <h1 className="text-2xl font-extrabold tracking-tight md:text-3xl">{t('opportunities.title')}</h1>
+              <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-blue-100 md:text-[15px]">
+                {t('opportunities.subtitle')}
+              </p>
+            </div>
+          </div>
         </div>
+        <dl className="relative -mt-10 mx-3 grid grid-cols-2 divide-x divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-slate-200 md:mx-6 md:grid-cols-4 md:divide-y-0 dark:divide-slate-800 dark:bg-slate-900 dark:ring-slate-700">
+          {kpis.map(({ key, value, icon: Icon, tile }) => (
+            <div key={key} className="flex items-center gap-3.5 px-4 py-4 md:px-6">
+              <span className={`grid h-11 w-11 flex-none place-items-center rounded-xl ${tile}`}>
+                <Icon className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <dd className="text-2xl font-bold leading-none tabular-nums text-slate-900 dark:text-white">{value}</dd>
+                <dt className="mt-1 text-xs font-semibold leading-tight text-slate-500 dark:text-slate-400">
+                  {t(`opportunities.kpi.${key}`)}
+                </dt>
+              </div>
+            </div>
+          ))}
+        </dl>
       </section>
+
       <FilterBar
         category={category}
         onCategory={(c) => {
@@ -172,24 +209,24 @@ export default function Opportunities() {
           setPage(1);
         }}
         search={search}
-        onSearch={(s) => {
-          setSearch(s);
+        onSearch={(v) => {
+          setSearch(v);
           setPage(1);
         }}
         sort={sort}
-        onSort={(s) => {
-          setSort(s);
+        onSort={(v) => {
+          setSort(v);
           setPage(1);
         }}
         source={source}
         sources={sources}
-        onSource={(s) => {
-          setSource(s);
+        onSource={(v) => {
+          setSource(v);
           setPage(1);
         }}
         country={country}
-        onCountry={(s) => {
-          setCountry(s);
+        onCountry={(v) => {
+          setCountry(v);
           setPage(1);
         }}
         ville={ville}
@@ -198,47 +235,38 @@ export default function Opportunities() {
           setPage(1);
         }}
         status={status}
-        onStatus={(s) => {
-          setStatus(s);
+        onStatus={(v) => {
+          setStatus(v);
           setPage(1);
         }}
         viewMode={viewMode}
         onViewMode={setViewMode}
+        hasFilters={hasFilters}
+        onReset={resetFilters}
       />
-      {loading ? (
-        <p className="text-slate-500">{t('common.loading')}</p>
-      ) : (
-        <OpportunityList
-          items={items}
-          onOpen={onOpen}
-          onQuickApply={onQuickApply}
-          appliedIds={appliedIds}
-          viewMode={viewMode}
-        />
-      )}
-      {pages > 1 && (
-        <div className="flex justify-center gap-2 pt-4">
-          <button
-            type="button"
-            disabled={page <= 1}
-            onClick={() => setPage((p) => p - 1)}
-            className="rounded border border-slate-600 px-3 py-1 text-sm disabled:opacity-40"
-          >
-            ←
-          </button>
-          <span className="text-sm text-slate-400 self-center">
-            {page} / {pages} ({total})
-          </span>
-          <button
-            type="button"
-            disabled={page >= pages}
-            onClick={() => setPage((p) => p + 1)}
-            className="rounded border border-slate-600 px-3 py-1 text-sm disabled:opacity-40"
-          >
-            →
-          </button>
+
+      {!loading && total > 0 ? (
+        <div className="flex flex-wrap items-baseline justify-between gap-2 px-1">
+          <p className="text-sm font-bold text-slate-900 dark:text-white">{t('opportunities.resultsCount', { count: total })}</p>
+          {pages > 1 ? (
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{t('opportunities.pageOf', { page, pages })}</p>
+          ) : null}
         </div>
-      )}
+      ) : null}
+
+      <OpportunityList
+        items={items}
+        onOpen={onOpen}
+        onQuickApply={onQuickApply}
+        appliedIds={appliedIds}
+        viewMode={viewMode}
+        loading={loading}
+        hasFilters={hasFilters}
+        onReset={resetFilters}
+      />
+
+      {!loading ? <Pagination page={page} pages={pages} total={total} onPage={goToPage} /> : null}
+
       {modal && (
         <OpportunityModal
           opp={modal}

@@ -1,0 +1,821 @@
+/* Auth pages: shared design for login, signup, forgot/reset password, OTP and pending approval.
+   Soft raised surfaces + Maison ECAL brand colours (navy #101B2C, sky blue #00AEEF, blue #2563eb).
+   Everything is scoped under .mlogin so nothing else in the app is affected. */
+
+.mlogin {
+  --ml-bg: #eaf0f6;
+  --ml-shadow-dark: rgba(150, 166, 190, 0.58);
+  --ml-shadow-light: rgba(255, 255, 255, 0.95);
+  --ml-field: rgba(234, 240, 246, 0.9);
+  --ml-title: #101b2c;
+  --ml-text: #14213a;
+  --ml-muted: #56627a;
+  --ml-sky: #00aeef;
+  --ml-blue: #1d4ed8;
+  --ml-blue-soft: #2563eb;
+  --ml-red: #c81e1e;
+  --ml-red-dark: #a31212;
+  --ml-error: #a61b1b;
+  --ml-success: #036a4a;
+
+  position: relative;
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 16px;
+  background: #0a1424;
+  color: var(--ml-text);
+  font-family: 'Poppins', Inter, system-ui, sans-serif;
+}
+
+/* ---------------------------------------------------------------- background
+   Deep navy with a soft blue glow, a faint blueprint grid and a dark vignette (all static). */
+
+.mlogin-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: radial-gradient(60% 55% at 12% 6%, rgba(0, 174, 239, 0.26), transparent 70%),
+    radial-gradient(55% 50% at 92% 98%, rgba(37, 99, 235, 0.34), transparent 70%),
+    radial-gradient(42% 46% at 50% 50%, rgba(37, 99, 235, 0.2), transparent 75%),
+    linear-gradient(135deg, #08111f 0%, #0e1c33 50%, #0a1626 100%);
+}
+.mlogin-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(rgba(148, 178, 220, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 178, 220, 0.07) 1px, transparent 1px);
+  background-size: 64px 64px;
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 30%, transparent 80%);
+  mask-image: radial-gradient(ellipse at center, #000 30%, transparent 80%);
+}
+.mlogin-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(2, 6, 14, 0.55) 100%);
+}
+
+/* ---------------------------------------------------------------- card */
+
+.mlogin-stage {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 780px;
+  margin: auto;
+}
+.mlogin-stage--wide {
+  max-width: 960px;
+}
+.mlogin-stage--single {
+  max-width: 392px;
+}
+
+/* Two panels side by side: navy glass brand panel on the left, light frosted form panel on the right. */
+.mlogin-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 28px;
+  background: rgba(12, 24, 44, 0.55);
+  -webkit-backdrop-filter: blur(22px) saturate(1.2);
+  backdrop-filter: blur(22px) saturate(1.2);
+  box-shadow: 0 40px 90px -24px rgba(0, 0, 0, 0.65);
+}
+
+/* Compact single card (short forms such as "forgot password") */
+.mlogin-card--single {
+  display: block;
+  overflow: visible;
+  padding: 32px 32px 24px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 32px;
+  background: linear-gradient(160deg, rgba(247, 250, 253, 0.95), rgba(228, 235, 244, 0.95));
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 40px 90px -24px rgba(0, 0, 0, 0.6);
+  text-align: center;
+}
+.mlogin-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 26px;
+}
+.mlogin-card--single .mlogin-tagline {
+  max-width: 300px;
+  margin: 0;
+  color: var(--ml-muted);
+  font-weight: 500;
+}
+
+.mlogin-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 36px 28px;
+  border-radius: 27px 0 0 27px;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(165deg, rgba(0, 174, 239, 0.16) 0%, rgba(12, 24, 44, 0.35) 65%);
+  color: #e2e8f0;
+  text-align: center;
+}
+/* On the dark panel the round icon is a subtle glass ring */
+.mlogin-side .mlogin-lock {
+  margin-bottom: 26px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #7dd3fc;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+.mlogin-tagline {
+  max-width: 230px;
+  margin: 10px 0 0;
+  color: #e2e8f0;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  line-height: 1.55;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+.mlogin-side-desc {
+  margin: 14px 0 0;
+  color: #9db4d0;
+  font-size: 12.5px;
+  font-style: italic;
+  line-height: 1.5;
+}
+
+.mlogin-main {
+  padding: 38px 40px 30px;
+  border-radius: 0 27px 27px 0;
+  background: linear-gradient(160deg, rgba(249, 251, 254, 0.96), rgba(233, 239, 246, 0.95));
+  text-align: center;
+}
+
+/* Round raised icon */
+.mlogin-lock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 22px;
+  border-radius: 50%;
+  background: var(--ml-bg);
+  color: var(--ml-blue-soft);
+  box-shadow: 7px 7px 15px var(--ml-shadow-dark), -7px -7px 15px var(--ml-shadow-light);
+}
+
+.mlogin-title {
+  margin: 0;
+  color: var(--ml-title);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.mlogin-subtitle {
+  margin: 6px 0 24px;
+  color: var(--ml-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.mlogin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  text-align: left;
+}
+.mlogin-form--tight {
+  gap: 16px;
+}
+/* Two columns of fields (signup) so the whole form fits on screen */
+.mlogin-form--grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 16px;
+}
+.mlogin-form--grid > .mlogin-message {
+  grid-column: 1 / -1;
+}
+.mlogin-form--grid .mlogin-submit {
+  height: 60px;
+}
+
+.mlogin-secure {
+  margin: 16px 0 0;
+  color: rgba(203, 213, 225, 0.85);
+  font-size: 11.5px;
+  font-weight: 500;
+  text-align: center;
+}
+
+/* ---------------------------------------------------------------- messages */
+
+.mlogin-message {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid #f5c2c2;
+  border-radius: 14px;
+  background: #fdeded;
+  color: var(--ml-error);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.5;
+  text-align: center;
+}
+.mlogin-message--success {
+  border-color: #b5e3cc;
+  background: #e4f6ed;
+  color: var(--ml-success);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.mlogin-text {
+  margin: 0;
+  color: var(--ml-muted);
+  font-size: 13px;
+  line-height: 1.65;
+  text-align: center;
+}
+.mlogin-hint {
+  margin: 0;
+  color: var(--ml-muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+  text-align: center;
+}
+.mlogin-chip {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 9px 18px;
+  border-radius: 999px;
+  background: var(--ml-bg);
+  box-shadow: inset 3px 3px 7px var(--ml-shadow-dark), inset -3px -3px 7px var(--ml-shadow-light),
+    0 0 0 1px rgba(37, 99, 235, 0.14);
+  color: var(--ml-text);
+  font-size: 12.5px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.mlogin-chip svg {
+  flex: none;
+  color: var(--ml-blue-soft);
+}
+
+/* ---------------------------------------------------------------- fields */
+
+.mlogin-control {
+  position: relative;
+}
+
+.mlogin-input {
+  display: block;
+  width: 100%;
+  height: 60px;
+  padding: 22px 52px 6px 20px;
+  border: 0;
+  border-radius: 18px;
+  background: var(--ml-field);
+  box-shadow: inset 5px 5px 11px var(--ml-shadow-dark), inset -5px -5px 11px var(--ml-shadow-light),
+    0 0 0 1px rgba(16, 27, 44, 0.07);
+  color: var(--ml-text);
+  font: 500 14px/1.2 'Poppins', Inter, system-ui, sans-serif;
+  outline: none;
+  transition: box-shadow 0.25s ease;
+}
+.mlogin-input::placeholder {
+  color: transparent;
+}
+.mlogin-input:focus {
+  box-shadow: inset 5px 5px 11px var(--ml-shadow-dark), inset -5px -5px 11px var(--ml-shadow-light),
+    0 0 0 2px rgba(37, 99, 235, 0.45), 0 8px 20px -8px rgba(37, 99, 235, 0.4);
+}
+.mlogin-input[aria-invalid='true'] {
+  box-shadow: inset 5px 5px 11px var(--ml-shadow-dark), inset -5px -5px 11px var(--ml-shadow-light),
+    0 0 0 2px rgba(200, 30, 30, 0.5);
+}
+
+/* Keep our own background when the browser autofills */
+.mlogin-input:-webkit-autofill,
+.mlogin-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--ml-text);
+  transition: background-color 600000s 0s;
+}
+
+.mlogin-label {
+  position: absolute;
+  top: 50%;
+  left: 20px;
+  transform: translateY(-50%);
+  color: var(--ml-muted);
+  font-size: 13.5px;
+  font-weight: 400;
+  pointer-events: none;
+  transform-origin: left top;
+  transition: top 0.2s ease, transform 0.2s ease, font-size 0.2s ease, color 0.2s ease;
+}
+.mlogin-input:focus ~ .mlogin-label,
+.mlogin-input:not(:placeholder-shown) ~ .mlogin-label,
+.mlogin-input:-webkit-autofill ~ .mlogin-label,
+.mlogin-field--select .mlogin-label {
+  top: 9px;
+  transform: none;
+  font-size: 10.5px;
+  font-weight: 500;
+}
+.mlogin-input:focus ~ .mlogin-label {
+  color: var(--ml-blue);
+}
+
+/* Underline shown on focus */
+.mlogin-line {
+  position: absolute;
+  right: 20px;
+  bottom: 7px;
+  left: 20px;
+  height: 3px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--ml-sky), var(--ml-blue-soft));
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.35s ease;
+  pointer-events: none;
+}
+.mlogin-input:focus ~ .mlogin-line {
+  transform: scaleX(1);
+}
+
+.mlogin-field-error {
+  margin: 7px 0 0 8px;
+  color: var(--ml-red);
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* Drop-down list (role picker) */
+.mlogin-select-button {
+  overflow: hidden;
+  padding-right: 48px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.mlogin-chevron {
+  position: absolute;
+  top: 50%;
+  right: 18px;
+  transform: translateY(-50%);
+  color: var(--ml-muted);
+  pointer-events: none;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+.mlogin-select[data-open='true'] .mlogin-chevron {
+  transform: translateY(-50%) rotate(180deg);
+  color: var(--ml-blue-soft);
+}
+.mlogin-select-list {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  left: 0;
+  z-index: 30;
+  margin: 0;
+  padding: 6px;
+  border-radius: 16px;
+  background: #f8fafd;
+  box-shadow: 0 22px 44px -14px rgba(8, 17, 31, 0.55), 0 0 0 1px rgba(16, 27, 44, 0.09);
+  list-style: none;
+}
+.mlogin-select-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  border-radius: 11px;
+  color: var(--ml-text);
+  font: 500 14px/1.2 'Poppins', Inter, system-ui, sans-serif;
+  cursor: pointer;
+}
+.mlogin-select-option[data-active='true'] {
+  background: rgba(37, 99, 235, 0.09);
+}
+.mlogin-select-option[aria-selected='true'] {
+  color: var(--ml-blue);
+  font-weight: 600;
+}
+/* Round selector: empty ring, filled ring for the chosen option */
+.mlogin-select-radio {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #94a3b8;
+  border-radius: 50%;
+  background: #f8fafd;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.mlogin-select-option[data-active='true'] .mlogin-select-radio {
+  border-color: var(--ml-blue-soft);
+}
+.mlogin-select-option[aria-selected='true'] .mlogin-select-radio {
+  border-color: var(--ml-blue-soft);
+  background: var(--ml-blue-soft);
+  box-shadow: inset 0 0 0 3px #f8fafd;
+}
+
+/* Show / hide password */
+.mlogin-eye {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ml-muted);
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+.mlogin-eye:hover {
+  color: var(--ml-blue);
+}
+.mlogin-eye:focus-visible {
+  outline: 2px solid var(--ml-blue-soft);
+  outline-offset: 1px;
+}
+
+/* Password strength */
+.mlogin-strength {
+  margin-top: 12px;
+}
+.mlogin-strength-track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--ml-bg);
+  box-shadow: inset 2px 2px 4px var(--ml-shadow-dark), inset -2px -2px 4px var(--ml-shadow-light);
+}
+.mlogin-strength-fill {
+  height: 100%;
+  border-radius: 8px;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+.mlogin-strength-fill--weak {
+  background: linear-gradient(90deg, #ef4444, #dc2626);
+}
+.mlogin-strength-fill--medium {
+  background: linear-gradient(90deg, #fbbf24, #d97706);
+}
+.mlogin-strength-fill--strong {
+  background: linear-gradient(90deg, #34d399, #059669);
+}
+.mlogin-strength-label {
+  margin: 7px 0 0 4px;
+  color: var(--ml-muted);
+  font-size: 11.5px;
+}
+.mlogin-strength-label strong {
+  font-weight: 600;
+}
+.mlogin-strength-label--weak strong {
+  color: #b91c1c;
+}
+.mlogin-strength-label--medium strong {
+  color: #b45309;
+}
+.mlogin-strength-label--strong strong {
+  color: #047857;
+}
+
+/* One-time code cells */
+.mlogin-otp {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+.mlogin-otp-cell {
+  width: 44px;
+  height: 56px;
+  padding: 0;
+  border: 0;
+  border-radius: 14px;
+  background: var(--ml-field);
+  box-shadow: inset 4px 4px 9px var(--ml-shadow-dark), inset -4px -4px 9px var(--ml-shadow-light),
+    0 0 0 1px rgba(16, 27, 44, 0.07);
+  color: var(--ml-title);
+  font: 700 20px/1 'Poppins', Inter, system-ui, sans-serif;
+  text-align: center;
+  outline: none;
+  transition: box-shadow 0.25s ease;
+}
+.mlogin-otp-cell--filled {
+  box-shadow: inset 4px 4px 9px var(--ml-shadow-dark), inset -4px -4px 9px var(--ml-shadow-light),
+    0 0 0 2px rgba(37, 99, 235, 0.22);
+  color: var(--ml-blue);
+}
+.mlogin-otp-cell:focus {
+  box-shadow: inset 4px 4px 9px var(--ml-shadow-dark), inset -4px -4px 9px var(--ml-shadow-light),
+    0 0 0 2px rgba(37, 99, 235, 0.55), 0 8px 18px -8px rgba(37, 99, 235, 0.5);
+}
+.mlogin-otp-cell--error {
+  box-shadow: inset 4px 4px 9px var(--ml-shadow-dark), inset -4px -4px 9px var(--ml-shadow-light),
+    0 0 0 2px rgba(200, 30, 30, 0.5);
+}
+.mlogin-otp-cell:disabled {
+  opacity: 0.6;
+}
+
+/* ---------------------------------------------------------------- links */
+
+.mlogin-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -6px;
+}
+.mlogin-link {
+  color: var(--ml-blue);
+  font-size: 12.5px;
+  font-weight: 500;
+  text-decoration: none;
+}
+.mlogin-link:hover {
+  text-decoration: underline;
+}
+.mlogin-link--danger {
+  color: var(--ml-red);
+  font-weight: 600;
+}
+.mlogin-link--danger:hover {
+  color: var(--ml-red-dark);
+}
+.mlogin-link:focus-visible,
+.mlogin-back:focus-visible,
+.mlogin-linkbtn:focus-visible {
+  border-radius: 6px;
+  outline: 2px solid var(--ml-blue-soft);
+  outline-offset: 3px;
+}
+.mlogin-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #047857;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.mlogin-back:hover {
+  color: #036a4a;
+  text-decoration: underline;
+}
+button.mlogin-back {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  cursor: pointer;
+}
+.mlogin-linkbtn {
+  align-self: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #047857;
+  font: 600 13px/1.4 'Poppins', Inter, system-ui, sans-serif;
+  cursor: pointer;
+}
+.mlogin-linkbtn:hover:not(:disabled) {
+  color: #036a4a;
+  text-decoration: underline;
+}
+.mlogin-linkbtn:disabled {
+  color: var(--ml-muted);
+  font-weight: 500;
+  cursor: not-allowed;
+}
+
+/* ---------------------------------------------------------------- buttons */
+
+/* Main button (also used on links) */
+.mlogin-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 56px;
+  border: 0;
+  border-radius: 18px;
+  background: #24478a;
+  box-shadow: 0 12px 22px -10px rgba(36, 71, 138, 0.8);
+  color: #fff;
+  font: 700 15px/1 'Poppins', Inter, system-ui, sans-serif;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+.mlogin-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: #2c5aa8;
+  box-shadow: 0 16px 26px -10px rgba(36, 71, 138, 0.9);
+}
+.mlogin-submit:active:not(:disabled) {
+  transform: none;
+  background: #1b3a73;
+  box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.4);
+}
+.mlogin-submit:focus-visible {
+  outline: 3px solid rgba(0, 174, 239, 0.5);
+  outline-offset: 3px;
+}
+.mlogin-submit:disabled {
+  cursor: wait;
+  opacity: 0.75;
+}
+
+/* Footer row with a round button */
+.mlogin-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 28px;
+  color: var(--ml-muted);
+  font-size: 12.5px;
+}
+/* Round icon button that turns into a text link ("S'inscrire") while hovered or focused.
+   The link keeps its 46px footprint; only the face grows, so nothing around it moves. */
+.mlogin-plus {
+  position: relative;
+  display: block;
+  flex: none;
+  width: 46px;
+  height: 46px;
+  color: var(--ml-blue-soft);
+  text-decoration: none;
+}
+.mlogin-plus-face {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 46px;
+  max-width: 46px;
+  height: 46px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--ml-bg);
+  box-shadow: 5px 5px 11px var(--ml-shadow-dark), -5px -5px 11px var(--ml-shadow-light);
+  white-space: nowrap;
+  transition: max-width 0.25s ease, box-shadow 0.2s ease;
+}
+.mlogin-plus-icon {
+  display: flex;
+}
+.mlogin-plus-label {
+  display: none;
+  padding: 0 22px;
+  color: var(--ml-blue);
+  font: 600 13px/1 'Poppins', Inter, system-ui, sans-serif;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.mlogin-plus:hover .mlogin-plus-face,
+.mlogin-plus:focus-visible .mlogin-plus-face {
+  max-width: 220px;
+}
+.mlogin-plus:hover .mlogin-plus-icon,
+.mlogin-plus:focus-visible .mlogin-plus-icon {
+  display: none;
+}
+.mlogin-plus:hover .mlogin-plus-label,
+.mlogin-plus:focus-visible .mlogin-plus-label {
+  display: block;
+}
+.mlogin-plus:active .mlogin-plus-face {
+  box-shadow: inset 3px 3px 7px var(--ml-shadow-dark), inset -3px -3px 7px var(--ml-shadow-light);
+}
+.mlogin-plus:focus-visible {
+  outline: none;
+}
+.mlogin-plus:focus-visible .mlogin-plus-face {
+  outline: 2px solid var(--ml-blue-soft);
+  outline-offset: 3px;
+}
+
+/* ---------------------------------------------------------------- small screens */
+
+/* Narrower windows: slimmer brand panel so the form keeps its room */
+@media (max-width: 900px) {
+  .mlogin-card {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+  .mlogin-side {
+    padding: 32px 20px;
+  }
+  .mlogin-main {
+    padding: 34px 28px 28px;
+  }
+  .mlogin-form--grid .mlogin-label {
+    max-width: calc(100% - 76px);
+    overflow: hidden;
+    font-size: 12.5px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mlogin-form--grid .mlogin-input:focus ~ .mlogin-label,
+  .mlogin-form--grid .mlogin-input:not(:placeholder-shown) ~ .mlogin-label,
+  .mlogin-form--grid .mlogin-field--select .mlogin-label {
+    font-size: 10.5px;
+  }
+}
+
+/* Tablets and phones: panels stack, brand becomes a compact header */
+@media (max-width: 760px) {
+  .mlogin-stage,
+  .mlogin-stage--wide {
+    max-width: 440px;
+  }
+  .mlogin-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .mlogin-side {
+    padding: 26px 24px 20px;
+    border-radius: 27px 27px 0 0;
+    border-right: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .mlogin-side .mlogin-lock {
+    width: 60px;
+    height: 60px;
+    margin-bottom: 16px;
+  }
+  .mlogin-side-desc {
+    display: none;
+  }
+  .mlogin-main {
+    padding: 28px 24px 26px;
+    border-radius: 0 0 27px 27px;
+  }
+  .mlogin-form--grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .mlogin {
+    padding: 20px 14px;
+  }
+  .mlogin-card {
+    border-radius: 28px;
+  }
+  .mlogin-card--single {
+    padding: 36px 22px 26px;
+  }
+  .mlogin-main {
+    padding: 26px 20px 24px;
+  }
+  .mlogin-otp {
+    gap: 6px;
+  }
+  .mlogin-otp-cell {
+    width: 40px;
+    height: 52px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mlogin *,
+  .mlogin *::before,
+  .mlogin *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

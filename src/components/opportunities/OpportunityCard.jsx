@@ -1,31 +1,32 @@
 import { fr } from 'date-fns/locale';
+import { Building2, CalendarDays, ChevronRight, ExternalLink, MapPin, Sparkles } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext.jsx';
-import { ExternalLink } from 'lucide-react';
 import ScoreRing from '../ui/ScoreRing.jsx';
 import { CATEGORY_BADGE, platformPillClass } from '../../utils/opportunityUi.js';
 import { SourceGlyph } from '../../utils/sourceIcons.jsx';
 import { formatDeadlineDate, isOpportunityNew } from '../../utils/opportunityDates.js';
-import {
-  deadlineUrgency,
-  deadlineTextClass,
-  scorePercent,
-  urgencyBadgeClass
-} from '../../utils/opportunityUrgency.js';
+import { deadlineUrgency, deadlineTextClass, scorePercent } from '../../utils/opportunityUrgency.js';
 import { isGenericKeywordJustification } from '../../utils/scanRelevanceDisplay.js';
-
-const cityColors = {
-  Bukavu: 'bg-green-500 text-white',
-  Goma: 'bg-blue-500 text-white',
-  Kinshasa: 'bg-orange-500 text-white',
-  Kalemie: 'bg-violet-500 text-white',
-  Lubumbashi: 'bg-red-500 text-white',
-  RDC: 'bg-slate-600 text-white'
-};
 
 function needsLocationReview(opp) {
   return opp?.locationStatus === 'a_verifier' || opp?.aiAnalysis?.pays_confirme_rdc === 'a_verifier';
 }
 
+function Tag({ className, icon: Icon, children }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${className}`}
+    >
+      {Icon ? <Icon className="h-2.5 w-2.5" aria-hidden="true" /> : null}
+      {children}
+    </span>
+  );
+}
+
+/**
+ * One opportunity, either as a card (grid view) or as a wide row (`compact`, list view).
+ * The whole block opens the details; the "quick apply" chip is a separate action.
+ */
 export default function OpportunityCard({
   opp,
   onOpen,
@@ -38,7 +39,8 @@ export default function OpportunityCard({
   const locale = lang === 'fr' ? fr : undefined;
   const showNew = isOpportunityNew(opp);
   const urgency = deadlineUrgency(opp.deadline);
-  const showUrgent = opp.isUrgent || urgency.level === 'critical' || urgency.level === 'soon';
+  const showUrgent = opp.isUrgent || urgency.level === 'critical';
+  const showSoon = !showUrgent && urgency.level === 'soon';
   const showVerify = needsLocationReview(opp);
   const pct = scorePercent(opp);
   const hasScore = opp.aiAnalysis?.score != null || opp.aiRelevanceScore != null;
@@ -46,124 +48,180 @@ export default function OpportunityCard({
   const showJustification = justification && !isGenericKeywordJustification(justification);
   const catBadge = CATEGORY_BADGE[opp.category] || CATEGORY_BADGE.assistance;
   const platformClass = platformPillClass(opp.platform);
+  const place = opp.ville && opp.ville !== 'Non précisé' ? opp.ville : '';
+  const canQuickApply = pct >= 70 && onQuickApply && !hasApplication;
+  const daysLeft = urgency.days != null && urgency.days >= 0 && urgency.days <= 30 ? urgency.days : null;
+
+  const quickApply = (e) => {
+    e.stopPropagation();
+    onQuickApply(opp);
+  };
+
+  const tags = (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {showNew ? <Tag className="bg-[#e3ebf9] text-[#24478a] dark:bg-slate-700 dark:text-blue-200">{t('opportunities.new')}</Tag> : null}
+      {opp.isRecommended ? (
+        <Tag icon={Sparkles} className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+          {t('opportunities.recommended')}
+        </Tag>
+      ) : null}
+      {showUrgent ? <Tag className="bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300">{t('opportunities.urgent')}</Tag> : null}
+      {showSoon ? (
+        <Tag className="bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300">
+          {t('opportunities.closingSoon', { count: urgency.days })}
+        </Tag>
+      ) : null}
+      {hasApplication ? (
+        <Tag className="bg-violet-100 text-violet-800 dark:bg-violet-950/60 dark:text-violet-300">{t('opportunities.hasApplication')}</Tag>
+      ) : null}
+      {showVerify ? (
+        <Tag className="bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">{t('opportunities.locationToVerify')}</Tag>
+      ) : null}
+    </div>
+  );
+
+  const details = (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-slate-500 dark:text-slate-400">
+      {opp.organization ? (
+        <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
+          <Building2 className="h-3.5 w-3.5 flex-none" aria-hidden="true" />
+          <span className="truncate">{opp.organization}</span>
+        </span>
+      ) : null}
+      {place ? (
+        <span className="inline-flex items-center gap-1 rounded-md bg-teal-50 px-1.5 py-0.5 text-[11px] font-semibold text-teal-700 ring-1 ring-teal-200 dark:bg-teal-950/40 dark:text-teal-300 dark:ring-teal-900">
+          <MapPin className="h-3 w-3 flex-none" aria-hidden="true" />
+          {place}
+        </span>
+      ) : null}
+      <span className={`rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${catBadge}`}>
+        {t(`opportunities.${opp.category}`)}
+      </span>
+    </div>
+  );
+
+  const ring = hasScore ? (
+    <span title={t('opportunities.relevanceForMecal', { pct })} className="flex-none">
+      <ScoreRing value={pct} size={compact ? 40 : 44} />
+    </span>
+  ) : null;
+
+  const timeTone =
+    urgency.level === 'critical' || urgency.level === 'passed'
+      ? 'bg-red-50 text-red-700 ring-red-200 dark:bg-red-950/40 dark:text-red-300 dark:ring-red-900'
+      : urgency.level === 'soon'
+        ? 'bg-orange-50 text-orange-700 ring-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:ring-orange-900'
+        : urgency.level === 'none'
+          ? 'bg-slate-50 text-slate-600 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700'
+          : 'bg-indigo-50 text-indigo-700 ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:ring-indigo-900';
+
+  const deadline = (
+    <div className={`inline-flex items-center gap-2.5 rounded-xl px-3 py-2 ring-1 ${timeTone}`}>
+      <CalendarDays className="h-4 w-4 flex-none" aria-hidden="true" />
+      <div className="min-w-0 leading-tight">
+        <p className="text-[9px] font-bold uppercase tracking-[0.14em] opacity-70">{t('opportunities.deadline')}</p>
+        <p className="text-sm font-bold">
+          {urgency.level === 'none' ? t('dashboard.noDeadline') : formatDeadlineDate(opp, locale, t)}
+        </p>
+        {daysLeft != null ? (
+          <p className="text-[11px] font-semibold opacity-80">{t('opportunities.daysLeft', { count: daysLeft })}</p>
+        ) : null}
+      </div>
+    </div>
+  );
+
+  const quickApplyChip = canQuickApply ? (
+    <span
+      role="button"
+      tabIndex={0}
+      onClick={quickApply}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') quickApply(e);
+      }}
+      className="rounded-lg border border-[#24478a] px-2.5 py-1 text-[11px] font-bold text-[#24478a] transition hover:bg-[#24478a] hover:text-white dark:border-blue-300 dark:text-blue-300 dark:hover:bg-blue-300 dark:hover:text-slate-900"
+    >
+      {t('opportunities.quickApply')}
+    </span>
+  ) : null;
+
+  const animation = { animationDelay: `${(index % 12) * 40}ms` };
+
+  if (compact) {
+    return (
+      <button
+        type="button"
+        onClick={() => onOpen(opp)}
+        className="mecal-fade-up group flex w-full items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-[#24478a]/50 hover:shadow-md focus:outline-none focus-visible:ring-4 focus-visible:ring-[#24478a]/15 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-blue-400/50"
+        style={animation}
+      >
+        <span
+          className={`grid h-12 w-12 flex-none place-items-center rounded-xl ring-1 ${platformClass}`}
+          title={opp.platform}
+        >
+          <SourceGlyph source={opp.platform} platform={opp.platform} className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h3 className="line-clamp-1 text-[15px] font-bold leading-snug text-slate-900 transition group-hover:text-[#24478a] dark:text-white dark:group-hover:text-blue-300">
+            {opp.title}
+          </h3>
+          <div className="mt-1.5">{details}</div>
+          {showNew || opp.isRecommended || showUrgent || showSoon || hasApplication || showVerify ? (
+            <div className="mt-2">{tags}</div>
+          ) : null}
+        </div>
+        <div className="hidden flex-none md:block">{deadline}</div>
+        {canQuickApply ? <div className="hidden flex-none lg:block">{quickApplyChip}</div> : null}
+        {ring}
+        <ChevronRight
+          className="h-4 w-4 flex-none text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[#24478a] dark:text-slate-600"
+          aria-hidden="true"
+        />
+      </button>
+    );
+  }
 
   return (
     <button
       type="button"
       onClick={() => onOpen(opp)}
-      className={`mecal-fade-up group w-full rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-md transition-all duration-200 hover:-translate-y-1 hover:border-blue-400 hover:shadow-xl hover:shadow-blue-500/10 dark:border-slate-700 dark:bg-slate-900/80 dark:hover:border-blue-500/50 ${
-        compact ? 'flex flex-col gap-3 md:flex-row md:items-center' : 'flex flex-col gap-3'
-      }`}
-      style={{ animationDelay: `${(index % 12) * 50}ms` }}
+      className="mecal-fade-up group flex h-full w-full min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-[#24478a]/50 hover:shadow-md focus:outline-none focus-visible:ring-4 focus-visible:ring-[#24478a]/15 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-blue-400/50"
+      style={animation}
     >
-      <div className="flex flex-1 flex-col gap-2">
-        <div className="flex items-start justify-between gap-3">
-          <h3 className="line-clamp-2 flex-1 font-bold leading-snug text-slate-900 group-hover:text-blue-700 dark:text-white dark:group-hover:text-blue-300">
-            {opp.title}
-          </h3>
-          {pct > 0 ? <ScoreRing value={pct} /> : null}
-        </div>
-        {hasScore ? (
-          <p className="text-xs font-semibold text-blue-800 dark:text-blue-200">
-            {t('opportunities.relevanceForMecal', { pct })}
-          </p>
-        ) : null}
-        {showJustification ? (
-          <p className="line-clamp-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-            {justification}
-          </p>
-        ) : null}
-
-        <div className="flex flex-wrap gap-1.5">
-          {showNew ? (
-            <span className="rounded-full bg-sky-500 px-2 py-0.5 text-[10px] font-bold uppercase text-white">
-              {t('opportunities.new')}
-            </span>
-          ) : null}
-          {opp.isRecommended ? (
-            <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold uppercase text-white">
-              {t('opportunities.recommended')}
-            </span>
-          ) : null}
-          {showUrgent ? (
-            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${urgencyBadgeClass(urgency.level === 'soon' ? 'soon' : 'critical')}`}>
-              {urgency.level === 'soon'
-                ? t('opportunities.closingSoon', { count: urgency.days })
-                : t('opportunities.urgent')}
-            </span>
-          ) : null}
-          {hasApplication ? (
-            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold uppercase text-blue-800">
-              {t('opportunities.hasApplication')}
-            </span>
-          ) : null}
-          {showVerify ? (
-            <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-950">
-              {t('opportunities.locationToVerify')}
-            </span>
-          ) : null}
-          {opp.ville && opp.ville !== 'Non précisé' ? (
-            <span
-              className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${cityColors[opp.ville] || cityColors.RDC}`}
-            >
-              {opp.ville}
-            </span>
-          ) : null}
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${catBadge}`}>
-            {t(`opportunities.${opp.category}`)}
-          </span>
-          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ring-1 ${platformClass}`}>
-            <SourceGlyph source={opp.platform} platform={opp.platform} className="h-3 w-3" />
-            {opp.platform}
-          </span>
-        </div>
-
-        {opp.organization ? (
-          <p className="line-clamp-1 text-sm text-slate-500 dark:text-slate-400">{opp.organization}</p>
-        ) : null}
+      <div className="flex items-start justify-between gap-3">
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ring-1 ${platformClass}`}
+        >
+          <SourceGlyph source={opp.platform} platform={opp.platform} className="h-3.5 w-3.5" />
+          {opp.platform}
+        </span>
+        {ring}
       </div>
 
-      <div
-        className={`flex items-center justify-between gap-2 border-t border-slate-100 pt-3 text-xs dark:border-slate-800 ${
-          compact ? 'md:border-t-0 md:pt-0 md:pl-4 md:border-l' : 'mt-auto'
-        }`}
-      >
-        <span className={deadlineTextClass(urgency.level)}>
-          {t('opportunities.deadline')}: {formatDeadlineDate(opp, locale, t)}
-        </span>
-        <div className="flex items-center gap-2">
-          {pct >= 70 && onQuickApply && !hasApplication ? (
-            <span
-              role="button"
-              tabIndex={0}
-              onClick={(e) => {
-                e.stopPropagation();
-                onQuickApply(opp);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.stopPropagation();
-                  onQuickApply(opp);
-                }
-              }}
-              className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-bold uppercase text-white hover:bg-blue-500"
-            >
-              {t('opportunities.quickApply')}
+      <h3 className="mt-3 line-clamp-3 text-[15px] font-bold leading-snug text-slate-900 transition group-hover:text-[#24478a] dark:text-white dark:group-hover:text-blue-300">
+        {opp.title}
+      </h3>
+      <div className="mt-2.5">{details}</div>
+      {showJustification ? (
+        <p className="mt-2.5 line-clamp-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{justification}</p>
+      ) : null}
+      {showNew || opp.isRecommended || showUrgent || showSoon || hasApplication || showVerify ? (
+        <div className="mt-3">{tags}</div>
+      ) : null}
+
+      <div className="mt-auto flex items-end justify-between gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+        <div className="mt-3 min-w-0">{deadline}</div>
+        <div className="flex items-center gap-2 pb-0.5">
+          {quickApplyChip}
+          {opp.sourceUrl && !opp.deadline ? (
+            <span className="whitespace-nowrap text-[11px] font-semibold text-[#24478a] group-hover:underline dark:text-blue-300">
+              {t('opportunities.verifyOnSource')}
             </span>
-          ) : null}
-        {opp.sourceUrl && !opp.deadline ? (
-          <span
-            className="max-w-[9rem] truncate text-[10px] font-semibold text-blue-600 group-hover:underline"
-            title={t('opportunities.verifyOnSource')}
-          >
-            {t('opportunities.verifyOnSource')}
-          </span>
-        ) : (
-          <ExternalLink className="h-4 w-4 text-slate-400 transition group-hover:text-blue-600" />
-        )}
+          ) : (
+            <ExternalLink
+              className="h-4 w-4 text-slate-300 transition group-hover:text-[#24478a] dark:text-slate-600"
+              aria-hidden="true"
+            />
+          )}
         </div>
       </div>
     </button>

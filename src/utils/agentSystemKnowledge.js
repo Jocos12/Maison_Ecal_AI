@@ -39,7 +39,7 @@ export function buildSystemContext({
   snapshot = null
 } = {}) {
   const snap = normalizeSnapshot(snapshot);
-  const navList = SIDEBAR.map((s) => `• ${s.label} (${s.path}) — ${s.desc}`).join('\n');
+  const navList = SIDEBAR.map((s) => `• ${s.label} (${s.path}), ${s.desc}`).join('\n');
   return {
     currentPage: pathname,
     opportunityCount: snap.stats.opportunitiesActive ?? statsDbTotal ?? opportunityTotal ?? opportunities.length,
@@ -144,7 +144,7 @@ export function answerGmailQuestion(ctx = {}) {
   }
 
   return (
-    `📧 **Messagerie Gmail — M-ECAL**\n\n` +
+    `📧 **Messagerie Gmail, M-ECAL**\n\n` +
     `• **${gmail.unread ?? 0}** e-mail(s) **non lu(s)**\n` +
     `• **${gmail.total ?? 0}** message(s) récents chargés (échantillon)\n\n` +
     `👉 Ouvrez **Messagerie Gmail** (\`/messaging\`) pour lire et répondre.\n` +
@@ -191,7 +191,7 @@ export function answerPlatformStats(ctx = {}) {
     .join('\n');
 
   return (
-    `🌐 **Offres par plateforme — veille M-ECAL**\n\n` +
+    `🌐 **Offres par plateforme, veille M-ECAL**\n\n` +
     `**${total}** opportunité(s) actives en base.\n\n` +
     `**Répartition :**\n${platformLines}\n\n` +
     (sourceLines ? `**Sources actives :**\n${sourceLines}\n\n` : '') +
@@ -215,15 +215,15 @@ export function answerListOffers(ctx = {}) {
   const list = recent
     .slice(0, 10)
     .map((o, i) => {
-      const score = o.score != null ? Math.round(Number(o.score) * (Number(o.score) <= 1 ? 100 : 1)) : '—';
-      return `${i + 1}. **${o.title}**\n   🏢 ${o.organization || o.platform || '—'} · 📍 ${o.ville || 'RDC'} · score ${score}`;
+      const score = o.score != null ? Math.round(Number(o.score) * (Number(o.score) <= 1 ? 100 : 1)) : 'n/d';
+      return `${i + 1}. **${o.title}**\n   🏢 ${o.organization || o.platform || 'n/d'} · 📍 ${o.ville || 'RDC'} · score ${score}`;
     })
     .join('\n\n');
 
   const total = ctx.statsDbTotal ?? ctx.opportunityCount ?? recent.length;
 
   return (
-    `📋 **Offres disponibles — M-ECAL** (${total} en base)\n\n` +
+    `📋 **Offres disponibles, M-ECAL** (${total} en base)\n\n` +
     `${list}\n\n` +
     `👉 Liste complète : **Opportunités** (\`/opportunities\`)\n` +
     `Dites « quelle est la meilleure offre ? » ou « postule pour l'offre 1 ».`
@@ -261,7 +261,7 @@ export function answerOpportunityCount(ctx = {}) {
       : '';
 
   return (
-    `📊 **Nombre d'offres — M-ECAL**\n\n` +
+    `📊 **Nombre d'offres, M-ECAL**\n\n` +
     `• **${totalDb}** offre(s) actives en base\n` +
     `• **${stats.opportunitiesArchived ?? 0}** archivée(s)\n` +
     `• **${verified}** confirmée(s) RDC (échantillon chargé)\n` +
@@ -340,8 +340,8 @@ export function answerSystemQuestion(message, ctx = {}) {
       `**Menu M-ECAL (sidebar)**\n\n` +
       groups.join('\n') +
       `\n\n**Page actuelle :** \`${ctx.currentPage || '/'}\`\n` +
-      `**Offres en base :** ${ctx.opportunityCount ?? '—'} · **Candidatures :** ${ctx.applicationCount ?? '—'}\n` +
-      `**Gmail non lus :** ${ctx.gmailUnread ?? '—'}\n\n` +
+      `**Offres en base :** ${ctx.opportunityCount ?? 'n/d'} · **Candidatures :** ${ctx.applicationCount ?? 'n/d'}\n` +
+      `**Gmail non lus :** ${ctx.gmailUnread ?? 'n/d'}\n\n` +
       `L'icône 🤖 en bas à droite ouvre l'agent IA sur toutes les pages.`
     );
   }
@@ -377,7 +377,7 @@ export function answerSystemQuestion(message, ctx = {}) {
   }
 
   return (
-    `**M-ECAL — Agent système**\n\n` +
+    `**M-ECAL, Agent système**\n\n` +
     `Je peux répondre sur **tout votre système** :\n` +
     `• 📊 Offres : combien, liste, par plateforme, meilleure offre\n` +
     `• 📧 Gmail : e-mails non lus\n` +
@@ -399,7 +399,7 @@ export function formatSystemContextForAI(ctx = {}) {
     `Offres actives base: ${ctx.opportunityCount}\n` +
     `Candidatures: ${ctx.applicationCount}\n` +
     `Gmail connecté: ${ctx.gmailConnected ? 'oui' : 'non'}, non lus: ${ctx.gmailUnread ?? 0}\n` +
-    `Plateformes: ${platforms || '—'}\n` +
+    `Plateformes: ${platforms || 'n/d'}\n` +
     `Sources actives: ${snap.stats?.sourcesActive ?? snap.sources?.length ?? 0}\n` +
     `${ctx.navList || ''}`
   );

@@ -1,7 +1,7 @@
-import { cn } from '../../lib/utils.js';
+import { useI18n } from '../../context/I18nContext.jsx';
 
 function scorePassword(pw) {
-  if (!pw) return { score: 0, label: '', color: 'bg-slate-600' };
+  if (!pw) return null;
   let s = 0;
   if (pw.length >= 8) s++;
   if (pw.length >= 12) s++;
@@ -9,25 +9,33 @@ function scorePassword(pw) {
   if (/\d/.test(pw)) s++;
   if (/[^a-zA-Z0-9]/.test(pw)) s++;
   const capped = Math.min(3, Math.floor(s * 0.7));
-  if (capped === 0) return { score: 1, label: 'Faible', color: 'bg-red-500' };
-  if (capped === 1) return { score: 2, label: 'Moyen', color: 'bg-amber-400' };
-  return { score: 3, label: 'Fort', color: 'bg-emerald-500' };
+  if (capped === 0) return { level: 'weak', pct: 34 };
+  if (capped === 1) return { level: 'medium', pct: 67 };
+  return { level: 'strong', pct: 100 };
 }
 
+const LABEL_KEY = {
+  weak: 'auth.strengthWeak',
+  medium: 'auth.strengthMedium',
+  strong: 'auth.strengthStrong'
+};
+
 export default function PasswordStrength({ password }) {
-  const { score, label, color } = scorePassword(password);
-  const pct = (score / 3) * 100;
+  const { t } = useI18n();
+  const result = scorePassword(password);
+  if (!result) return null;
 
   return (
-    <div className="space-y-2 pt-1">
-      <div className="flex h-1.5 overflow-hidden rounded-full bg-slate-800">
-        <div className={cn('h-full transition-all duration-300', color)} style={{ width: `${pct}%` }} />
+    <div className="mlogin-strength">
+      <div className="mlogin-strength-track" aria-hidden="true">
+        <div
+          className={`mlogin-strength-fill mlogin-strength-fill--${result.level}`}
+          style={{ width: `${result.pct}%` }}
+        />
       </div>
-      {password && (
-        <p className="text-xs text-slate-400">
-          Sécurité : <span className="font-semibold text-slate-200">{label}</span>
-        </p>
-      )}
+      <p className={`mlogin-strength-label mlogin-strength-label--${result.level}`} aria-live="polite">
+        {t('auth.strengthLabel')} : <strong>{t(LABEL_KEY[result.level])}</strong>
+      </p>
     </div>
   );
 }

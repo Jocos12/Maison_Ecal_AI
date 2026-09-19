@@ -64,7 +64,7 @@ export default function OpportunityAskChat({ opportunityId, title, open, onClose
     <div className="fixed inset-0 z-[65] flex items-center justify-center p-4">
       <button type="button" className="absolute inset-0 bg-black/50" aria-label="Fermer" onClick={onClose} />
       <div className="relative flex max-h-[min(90vh,640px)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-950">
-        <header className="flex items-start justify-between gap-3 border-b border-slate-200 bg-gradient-to-r from-[#1e3a5f] to-blue-700 px-4 py-3 text-white">
+        <header className="flex items-start justify-between gap-3 border-b border-slate-200 bg-[#24478a] px-4 py-3 text-white">
           <div className="min-w-0">
             <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-blue-100">
               <MessageCircle className="h-3.5 w-3.5" />
@@ -80,7 +80,7 @@ export default function OpportunityAskChat({ opportunityId, title, open, onClose
           {messages.length === 0 ? (
             <p className="text-sm text-slate-500">
               Posez une question sur cette offre. L’IA s’appuie uniquement sur le texte scrapé et l’analyse
-              « Comment postuler » si vous l’avez déjà lancée — elle n’invente pas de contact.
+              « Comment postuler » si vous l’avez déjà lancée, elle n’invente pas de contact.
             </p>
           ) : null}
           {messages.map((m, i) => (

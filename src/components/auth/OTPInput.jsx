@@ -54,7 +54,7 @@ export default function OTPInput({ value, onChange, disabled, error }) {
   };
 
   return (
-    <div className="flex justify-center gap-2" onPaste={onPaste}>
+    <div className="mlogin-otp" onPaste={onPaste}>
       {Array.from({ length: cells }).map((_, idx) => (
         <input
           key={idx}
@@ -63,14 +63,17 @@ export default function OTPInput({ value, onChange, disabled, error }) {
           }}
           type="text"
           inputMode="numeric"
+          autoComplete="off"
           maxLength={1}
           disabled={disabled}
           value={chars[idx]}
+          aria-label={`${idx + 1} / ${cells}`}
           onChange={(e) => onChangeCell(idx, e)}
           onKeyDown={(e) => onKeyDown(idx, e)}
           className={cn(
-            'h-12 w-10 rounded-xl border bg-slate-800/90 text-center text-lg font-bold text-white shadow-inner transition-all focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40',
-            error ? 'border-red-500/60 animate-shake' : 'border-white/10'
+            'mlogin-otp-cell',
+            chars[idx] && 'mlogin-otp-cell--filled',
+            error && 'mlogin-otp-cell--error'
           )}
         />
       ))}

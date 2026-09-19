@@ -32,18 +32,19 @@ export function markRead(id) {
   writeAll(readAll().map((n) => (n.id === id ? { ...n, read: true } : n)));
 }
 
+/**
+ * Add a notification, or update the one with the same id.
+ * An existing notification keeps its date, and once it has been read it stays read: a later sync or poll
+ * that sends it again must not bring it back into the list.
+ */
 export function upsertNotification(entry) {
   const list = readAll();
   const idx = list.findIndex((n) => n.id === entry.id);
-  const item = {
-    read: false,
-    createdAt: new Date().toISOString(),
-    ...entry
-  };
   if (idx >= 0) {
-    list[idx] = { ...list[idx], ...item, read: list[idx].read && item.read !== false ? true : false };
+    const current = list[idx];
+    list[idx] = { ...current, ...entry, createdAt: current.createdAt, read: Boolean(current.read || entry.read) };
   } else {
-    list.unshift(item);
+    list.unshift({ read: false, createdAt: new Date().toISOString(), ...entry });
   }
   writeAll(list);
 }

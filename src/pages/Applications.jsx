@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { useI18n } from '../context/I18nContext.jsx';
 import ApplicationList from '../components/applications/ApplicationList.jsx';
 import ApplicationDetailModal from '../components/applications/ApplicationDetailModal.jsx';
 import toast from 'react-hot-toast';
+import { ClipboardList, GripVertical } from 'lucide-react';
 import { isLocalFileUrl, sanitizeDocuments } from '../utils/applicationDocuments.js';
 import { stripMarkdown } from '../utils/stripMarkdown.js';
 
@@ -72,6 +73,18 @@ export default function Applications() {
   }, []);
 
   const highlightStatus = searchParams.get('status') || '';
+
+  // Coming from the global search: open that application once the list is loaded.
+  const focusId = searchParams.get('id');
+  const openedFromLink = useRef(null);
+  useEffect(() => {
+    if (!focusId || !apps.length || openedFromLink.current === focusId) return;
+    const app = apps.find((a) => String(a._id) === focusId);
+    if (app) {
+      openedFromLink.current = focusId;
+      open(app);
+    }
+  }, [focusId, apps]);
 
   const counters = useMemo(() => {
     const by = { draft: 0, submitted: 0, pending: 0, won: 0, rejected: 0 };
@@ -166,7 +179,7 @@ export default function Applications() {
           phone: sel.contactPerson?.phone || ''
         }
       });
-      toast.success(`Candidature enregistrée — Statut : ${statusLabels[status] || status}`, {
+      toast.success(`Candidature enregistrée, Statut : ${statusLabels[status] || status}`, {
         duration: 2500
       });
       setSel(null);
@@ -206,35 +219,93 @@ export default function Applications() {
     }
   };
 
+  const decided = counters.won + counters.rejected;
+  const successRate = decided ? Math.round((counters.won / decided) * 100) : null;
+  const stages = [
+    { key: 'draft', dot: 'bg-slate-400' },
+    { key: 'submitted', dot: 'bg-[#24478a]' },
+    { key: 'pending', dot: 'bg-amber-500' },
+    { key: 'won', dot: 'bg-emerald-500' },
+    { key: 'rejected', dot: 'bg-rose-500' }
+  ];
+
   return (
     <div className="page-shell space-y-6">
-      <section className="mecal-hero-dashboard relative overflow-hidden rounded-3xl px-6 py-7 text-white shadow-xl md:px-8">
-        <div className="pointer-events-none absolute -right-16 top-0 h-40 w-40 rounded-full bg-cyan-400/20 blur-3xl" />
-        <h1 className="mecal-title-shine text-2xl font-bold tracking-tight md:text-3xl">
-          {t('applications.title')}
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm text-blue-100/90">{t('applications.subtitle')}</p>
-        <div className="mt-4 flex flex-wrap gap-2 text-xs">
-          <span className="rounded-full bg-white/15 px-3 py-1 font-semibold">
-            {t('applications.counterTotal', { count: apps.length })}
-          </span>
-          <span className="rounded-full bg-white/15 px-3 py-1 font-semibold">
-            {t('applications.counterDraft', { count: counters.draft })}
-          </span>
-          <span className="rounded-full bg-white/15 px-3 py-1 font-semibold">
-            {t('applications.counterSubmitted', { count: counters.submitted })}
-          </span>
-          <span className="rounded-full bg-amber-400/90 px-3 py-1 font-bold text-slate-900">
-            {t('applications.counterPending', { count: counters.pending })}
-          </span>
-          <span className="rounded-full bg-emerald-500/90 px-3 py-1 font-bold text-white">
-            {t('applications.counterWon', { count: counters.won })}
-          </span>
-          <span className="rounded-full bg-rose-500/90 px-3 py-1 font-bold text-white">
-            {t('applications.counterRejected', { count: counters.rejected })}
-          </span>
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-5">
+          <div className="flex min-w-0 items-start gap-4">
+            <span className="grid h-12 w-12 flex-none place-items-center rounded-2xl bg-[#24478a] text-white shadow-sm">
+              <ClipboardList className="h-6 w-6" aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 md:text-3xl dark:text-white">
+                {t('applications.title')}
+              </h1>
+              <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-slate-500 dark:text-slate-400">
+                {t('applications.subtitle')}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-none divide-x divide-slate-200 overflow-hidden rounded-2xl bg-slate-50 ring-1 ring-slate-200 dark:divide-slate-700 dark:bg-slate-800/60 dark:ring-slate-700">
+            <div className="px-6 py-3.5">
+              <p className="text-4xl font-extrabold leading-none tabular-nums text-slate-900 dark:text-white">{apps.length}</p>
+              <p className="mt-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                {t('applications.kpi.total')}
+              </p>
+            </div>
+            <div className="px-6 py-3.5">
+              <p className="text-4xl font-extrabold leading-none tabular-nums text-emerald-600 dark:text-emerald-400">
+                {successRate == null ? 'n/d' : `${successRate} %`}
+              </p>
+              <p className="mt-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                {t('applications.successRate')}
+              </p>
+              <p className="mt-0.5 text-[11px] text-slate-400">
+                {decided ? t('applications.successRateHint', { count: decided }) : t('applications.noDecision')}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6">
+          <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">{t('applications.pipelineTitle')}</p>
+          <div
+            className="flex h-3 gap-0.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
+            role="img"
+            aria-label={t('applications.pipelineTitle')}
+          >
+            {apps.length
+              ? stages.map(({ key, dot }) =>
+                  counters[key] ? (
+                    <span
+                      key={key}
+                      className={`${dot} first:rounded-l-full last:rounded-r-full`}
+                      style={{ width: `${(counters[key] / apps.length) * 100}%` }}
+                    />
+                  ) : null
+                )
+              : null}
+          </div>
+          <ul className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-5">
+            {stages.map(({ key, dot }) => (
+              <li key={key} className="flex items-center gap-2.5">
+                <span className={`h-2.5 w-2.5 flex-none rounded-sm ${dot}`} aria-hidden="true" />
+                <span className="whitespace-nowrap text-sm text-slate-600 dark:text-slate-300">{t(`applications.kpi.${key}`)}</span>
+                <span className="ml-auto text-sm font-bold tabular-nums text-slate-900 dark:text-white">{counters[key]}</span>
+                <span className="w-10 text-right text-xs tabular-nums text-slate-400">
+                  {apps.length ? `${Math.round((counters[key] / apps.length) * 100)} %` : '0 %'}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
+
+      <p className="flex items-center gap-2 px-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+        <GripVertical className="h-4 w-4 flex-none text-slate-400" aria-hidden="true" />
+        {t('applications.dragHint')}
+      </p>
       <ApplicationList
         apps={apps}
         onSelect={open}

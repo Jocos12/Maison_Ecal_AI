@@ -12,7 +12,7 @@ export function formatProfileSummary(profile) {
 
   return fields
     .map(([label, val]) => {
-      const v = String(val || '').trim() || '—';
+      const v = String(val || '').trim() || 'n/d';
       const short = v.length > 150 ? `${v.slice(0, 150)}…` : v;
       return `• ${label} : ${short}`;
     })

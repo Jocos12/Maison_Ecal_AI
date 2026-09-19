@@ -1,10 +1,10 @@
 /** LinkedIn Jobs — paramètres optimisés pour la RDC (sans guillemets ni booléens OR). */
 
 export const LINKEDIN_TIME = {
-  week: { code: 'r604800', label: '7 jours', hint: 'Recommandé — plus de résultats', days: 7 },
+  week: { code: 'r604800', label: '7 jours', hint: 'Recommandé, plus de résultats', days: 7 },
   month: { code: 'r2592000', label: '30 jours', hint: 'Recherche large', days: 30 },
   all: { code: '', label: 'Tout', hint: 'Sans limite de date', days: null },
-  day: { code: 'r86400', label: '24 h', hint: 'Très récent — peu d\'offres en RDC', days: 1 }
+  day: { code: 'r86400', label: '24 h', hint: 'Très récent, peu d\'offres en RDC', days: 1 }
 };
 
 export const LINKEDIN_GEO = {

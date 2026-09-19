@@ -188,7 +188,7 @@ export default function SourcesAiAgent({ opportunities = [], onFiltered }) {
           <Bot className="h-5 w-5" />
         </span>
         <div>
-          <h2 className="font-bold text-slate-900 dark:text-white">Agent IA — Sources & Candidatures</h2>
+          <h2 className="font-bold text-slate-900 dark:text-white">Agent IA, Sources & Candidatures</h2>
           <p className="text-xs text-slate-500">Filtres intelligents · CV · Lettres · M-ECAL</p>
         </div>
       </header>

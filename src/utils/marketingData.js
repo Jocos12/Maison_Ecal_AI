@@ -76,7 +76,7 @@ export function buildMarketingStats(applications = []) {
 
   const enriched = applied.map((a) => ({
     source: a.opportunity?.platform || 'M-ECAL',
-    category: a.opportunity?.category || a.opportunity?.aiAnalysis?.categorie || '—',
+    category: a.opportunity?.category || a.opportunity?.aiAnalysis?.categorie || 'n/d',
     matchScore: getMatchScore(a),
     status: a.status,
     createdAt: a.createdAt,
@@ -99,7 +99,7 @@ export function buildMarketingStats(applications = []) {
   };
 }
 
-export function buildWeeklyChart(applications = []) {
+export function buildWeeklyChart(applications = [], locale = 'fr-FR') {
   const applied = applications.filter((a) => isApplied(a.status));
   const dated = applied
     .map((a) => ({ a, d: applicationDate(a) }))
@@ -134,7 +134,7 @@ export function buildWeeklyChart(applications = []) {
     const inRange = dated.filter((x) => x.d >= start && x.d <= end).map((x) => x.a);
     return {
       week: `S${index}`,
-      periode: `${start.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} – ${end.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}`,
+      periode: `${start.toLocaleDateString(locale, { day: '2-digit', month: 'short' })} → ${end.toLocaleDateString(locale, { day: '2-digit', month: 'short' })}`,
       soumises: inRange.length,
       repondues: inRange.filter((a) => isAnswered(a.status)).length
     };
