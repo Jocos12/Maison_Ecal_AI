@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { cleanDeep } from '../utils/cleanText.js';
 
 const baseURL = import.meta.env.VITE_API_URL || '';
 
@@ -9,7 +10,10 @@ export const api = axios.create({
 });
 
 api.interceptors.response.use(
-  (r) => r,
+  (r) => {
+    if (r.config?.responseType === undefined || r.config.responseType === 'json') r.data = cleanDeep(r.data);
+    return r;
+  },
   (err) => {
     const url = err.config?.url || '';
     const isAuthAttempt =

@@ -1,15 +1,17 @@
+import { FileText, Inbox, Lightbulb, Mail, Pencil, Search } from 'lucide-react';
+
 export function getAgentStarter(t) {
   return t('agent.starter');
 }
 
 export function getQuickActions(t) {
   return [
-    { icon: '🔍', label: t('agent.quickSearch'), prompt: t('agent.quickSearchPrompt') },
-    { icon: '📄', label: t('agent.quickCv'), prompt: t('agent.quickCvPrompt') },
-    { icon: '✏️', label: t('agent.quickFixCv'), prompt: t('agent.quickFixCvPrompt') },
-    { icon: '✉️', label: t('agent.quickLetter'), prompt: t('agent.quickLetterPrompt') },
-    { icon: '📬', label: t('agent.quickApply'), prompt: t('agent.quickApplyPrompt') },
-    { icon: '💡', label: t('agent.quickAdvice'), prompt: t('agent.quickAdvicePrompt') }
+    { icon: Search, label: t('agent.quickSearch'), prompt: t('agent.quickSearchPrompt') },
+    { icon: FileText, label: t('agent.quickCv'), prompt: t('agent.quickCvPrompt') },
+    { icon: Pencil, label: t('agent.quickFixCv'), prompt: t('agent.quickFixCvPrompt') },
+    { icon: Mail, label: t('agent.quickLetter'), prompt: t('agent.quickLetterPrompt') },
+    { icon: Inbox, label: t('agent.quickApply'), prompt: t('agent.quickApplyPrompt') },
+    { icon: Lightbulb, label: t('agent.quickAdvice'), prompt: t('agent.quickAdvicePrompt') }
   ];
 }
 

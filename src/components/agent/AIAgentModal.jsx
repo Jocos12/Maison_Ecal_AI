@@ -1,21 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
-import { History } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { ArrowUpRight, Briefcase, Download, FileText, GraduationCap, History, Mail, Mic, MicOff, Paperclip, Pencil, Phone, Plus, RefreshCw, Send, Sparkles, Upload, Volume2, VolumeX, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../../api/client.js';
-import { prepareCvUploadPayload } from '../../utils/extractCvText.js';
-import { downloadJobDocument } from '../../utils/downloadJobDocument.js';
 import {
   parseOfferIndex,
   summarizeApplications,
   truncateTitle,
-  wantsApplicationAnalysis,
   wantsApply,
   wantsCvCorrection,
   wantsCvOrLetter,
   wantsJobSearch,
-  wantsShowProfile
+  wantsShowProfile,
+  wantsVoiceAction
 } from '../../utils/agentIntents.js';
+import { prepareCvUploadPayload, CV_ACCEPT } from '../../utils/extractCvText.js';
+import { downloadJobDocument } from '../../utils/downloadJobDocument.js';
 import { defaultTargetJob, formatProfileSummary } from '../../utils/agentProfileUtils.js';
 import {
   filterSourcesOpportunities,
@@ -23,24 +23,30 @@ import {
   opportunityToJob
 } from '../../utils/sourcesFilterUtils.js';
 import {
-  answerFromAgentContext,
   answerOpportunityCount,
   answerSystemQuestion,
   buildSystemContext,
-  formatSystemContextForAI,
-  wantsBestOfferOnPage,
-  wantsOpportunityCount,
-  wantsSystemQuestion
+  formatSystemContextForAI
 } from '../../utils/agentSystemKnowledge.js';
-import { RichTextContent } from '../../utils/agentRichText.jsx';
+import { AgentMarkdown } from '../../utils/agentMarkdown.jsx';
 import {
   AGENT_ACTIVE_CONV_KEY,
   mapServerMessages
 } from '../../utils/agentConversationUtils.js';
+import { useApp } from '../../context/AppContext.jsx';
 import { useI18n } from '../../context/I18nContext.jsx';
 import { useUiLocale } from '../../hooks/useUiLocale.js';
+import { useSpeechRecognition } from '../../hooks/useSpeechRecognition.js';
+import { useAgentTts } from '../../hooks/useAgentTts.js';
+import { useDraggableWidget } from '../../hooks/useDraggableWidget.js';
+import { useVoiceMode } from '../../context/VoiceModeContext.jsx';
+import { detectSpeechLanguage } from '../../utils/detectSpeechLanguage.js';
 import { getAgentStarter, getProviderLabel, getQuickActions } from '../../utils/agentUiHelpers.js';
+import { planVoiceToolExecution } from '../../utils/voiceToolExecutor.js';
 import AgentHistoryPanel from './AgentHistoryPanel.jsx';
+import { AgentOrb, EqBars } from './AgentOrb.jsx';
+import DegradedModeBanner from './DegradedModeBanner.jsx';
+import { useAiDegradedMode } from '../../hooks/useAiDegradedMode.js';
 
 function DownloadPdfButton({ document: doc, t }) {
   const [loading, setLoading] = useState(false);
@@ -61,23 +67,29 @@ function DownloadPdfButton({ document: doc, t }) {
           setLoading(false);
         }
       }}
-      className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:opacity-90 disabled:opacity-50"
+      className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#24478a] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#1c3a72] disabled:opacity-50"
     >
-      📥 {loading ? t('agent.downloading') : t('agent.downloadPdf')}
+      <Download className="h-4 w-4" strokeWidth={2} aria-hidden />
+      {loading ? t('agent.downloading') : t('agent.downloadPdf')}
     </button>
   );
 }
 
-function MessageContent({ content, document: docMeta, provider, isUser, t }) {
+function MessageContent({ content, document: docMeta, provider, isUser, streaming, t }) {
   const providerLabel = getProviderLabel(t, provider);
 
   return (
     <div>
-      <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">
-        <RichTextContent text={content} invertLinks={isUser} />
-      </pre>
+      {isUser ? (
+        <pre className="whitespace-pre-wrap font-sans text-[13px] leading-relaxed">
+          {content}
+        </pre>
+      ) : (
+        <AgentMarkdown text={content || (streaming ? '…' : '')} />
+      )}
+      {streaming && content ? <span className="ml-0.5 inline-block h-3.5 w-1.5 animate-pulse rounded-sm bg-[#24478a] align-middle" aria-hidden="true" /> : null}
       <DownloadPdfButton document={docMeta} t={t} />
-      {providerLabel ? (
+      {providerLabel && !streaming ? (
         <p className="mt-2 text-[10px] font-medium uppercase tracking-wide text-slate-400">
           {t('agent.via')} {providerLabel}
         </p>
@@ -86,10 +98,33 @@ function MessageContent({ content, document: docMeta, provider, isUser, t }) {
   );
 }
 
+const TOOL_TONES = [
+  'bg-teal-100 text-teal-700',
+  'bg-violet-100 text-violet-700',
+  'bg-amber-100 text-amber-700',
+  'bg-rose-100 text-rose-700',
+  'bg-emerald-100 text-emerald-700',
+  'bg-[#e3ebf9] text-[#24478a]'
+];
+
+const CHAT_DOTS =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22'%3E%3Ccircle cx='2' cy='2' r='1.2' fill='%2324478a' fill-opacity='.09'/%3E%3C/svg%3E\")";
+
+const userInitials = (user) => {
+  const words = String(user?.name || '').trim().split(/\s+/).filter(Boolean);
+  if (words.length >= 2) return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return String(user?.email || '?')[0].toUpperCase();
+};
+
 export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsumed }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const { t, lang } = useI18n();
+  const { user } = useApp();
+  const { degraded, noteProvider } = useAiDegradedMode();
   const { dateLocale } = useUiLocale();
+  const { setPendingApply } = useVoiceMode();
   const starter = getAgentStarter(t);
   const quickActions = getQuickActions(t);
   const [messages, setMessages] = useState([{ role: 'assistant', content: starter }]);
@@ -109,18 +144,46 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
   const [conversations, setConversations] = useState([]);
   const [activeConversationId, setActiveConversationId] = useState(null);
   const [convReady, setConvReady] = useState(false);
+  const [speechLang, setSpeechLang] = useState(() => (lang === 'en' ? 'en' : 'fr'));
+  const [micError, setMicError] = useState(null);
   const bottomRef = useRef(null);
+  const chatScrollRef = useRef(null);
   const messagesRef = useRef([]);
   const activeConversationIdRef = useRef(null);
   const persistTimerRef = useRef(null);
+  const streamTimerRef = useRef(null);
+  const cvFileRef = useRef(null);
+  const tts = useAgentTts();
+  const drag = useDraggableWidget({
+    width: showHistory ? 896 : 672,
+    height: Math.min(window.innerHeight * 0.75, 720)
+  });
+
+  const handleMicResult = useCallback((text, isFinal) => {
+    setInput(text);
+    setMicError(null);
+    if (isFinal) {
+      setSpeechLang(detectSpeechLanguage(text, lang));
+    }
+  }, [lang]);
+
+  const handleMicError = useCallback((code) => {
+    setMicError(code);
+  }, []);
+
+  const speech = useSpeechRecognition({
+    lang: speechLang,
+    onResult: handleMicResult,
+    onError: handleMicError
+  });
 
   const cvData = profile?.fullName
     ? {
         fileName: cvMeta?.fileName || t('agent.cvImported'),
-        email: profile.email || '—',
-        phone: profile.phone || '—',
-        formation: profile.education || '—',
-        experience: profile.experience || '—'
+        email: profile.email || 'n/d',
+        phone: profile.phone || 'n/d',
+        formation: profile.education || 'n/d',
+        experience: profile.experience || 'n/d'
       }
     : null;
 
@@ -178,7 +241,12 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
   }, [loadContext]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Follow the conversation inside the chat area only (never the page behind it); a new conversation starts at the top
+    const box = chatScrollRef.current;
+    if (!box) return;
+    const onlyStarter = messages.length === 1 && messages[0].content === starter;
+    box.scrollTo({ top: onlyStarter ? 0 : box.scrollHeight, behavior: 'smooth' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, isTyping, showCVPanel]);
 
   useEffect(() => {
@@ -301,6 +369,7 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
     initConversations();
     return () => {
       if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+      if (streamTimerRef.current) clearTimeout(streamTimerRef.current);
     };
   }, [initConversations]);
 
@@ -309,11 +378,48 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
   }, [messages]);
 
   const appendAssistant = (content, meta = {}) => {
-    setMessages((prev) => {
-      const next = [...prev, { role: 'assistant', content, ...meta, timestamp: new Date().toISOString() }];
-      schedulePersist(next);
-      return next;
-    });
+    if (meta.provider) noteProvider(meta.provider);
+    const full = String(content || '');
+    const shouldStream = meta.stream !== false && full.length > 60 && !meta.document;
+
+    if (!shouldStream) {
+      setMessages((prev) => {
+        const next = [...prev, { role: 'assistant', content: full, ...meta, timestamp: new Date().toISOString() }];
+        schedulePersist(next);
+        return next;
+      });
+      if (full) tts.speak(full).catch(() => {});
+      return;
+    }
+
+    const stamp = new Date().toISOString();
+    setIsTyping(false);
+    setMessages((prev) => [...prev, { role: 'assistant', content: '', streaming: true, ...meta, timestamp: stamp }]);
+
+    const chunks = full.split(/(\s+)/);
+    let acc = '';
+    let i = 0;
+    const tick = () => {
+      acc += chunks[i] || '';
+      i += 1;
+      const done = i >= chunks.length;
+      const shown = done ? full : acc;
+      setMessages((prev) => {
+        const next = [...prev];
+        const last = next[next.length - 1];
+        if (last?.role === 'assistant') {
+          next[next.length - 1] = { ...last, content: shown, streaming: !done };
+        }
+        if (done) schedulePersist(next);
+        return next;
+      });
+      if (!done) {
+        streamTimerRef.current = setTimeout(tick, 16);
+      } else if (full) {
+        tts.speak(full).catch(() => {});
+      }
+    };
+    tick();
   };
 
   const systemCtx = () =>
@@ -391,7 +497,7 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
       const body = data.textContent || data.preview || data.content || data.document || '';
       const preview =
         body.length > 1200 ? `${body.slice(0, 1200)}…\n\n${t('agent.docPreviewTruncated')}` : body;
-      appendAssistant(`✅ **${title}** — « ${truncateTitle(label)} »\n\n${preview}`, {
+      appendAssistant(`✅ **${title}**, « ${truncateTitle(label)} »\n\n${preview}`, {
         document: {
           documentId: data.documentId,
           fileName: data.fileName || `${docType}-mecal.pdf`,
@@ -431,7 +537,7 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
     }
     const lines = ranked.map(
       (o, i) =>
-        `${i + 1}. **${o.title}** — ${o.organization || o.platform} · score ${Math.round(o.aiAnalysis?.score ?? (o.aiRelevanceScore ?? 0) * 100)}`
+        `${i + 1}. **${o.title}**, ${o.organization || o.platform} · score ${Math.round(o.aiAnalysis?.score ?? (o.aiRelevanceScore ?? 0) * 100)}`
     );
     appendAssistant(
       `${t('agent.jobsFoundMsg', { count: ranked.length })}\n\n${lines.join('\n')}\n\n${t('agent.jobsListFooter')}`
@@ -469,7 +575,7 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
       target = ranked[offerIndex];
       if (!target) {
         const lines = ranked.slice(0, 8).map(
-          (o, i) => `${i + 1}. **${truncateTitle(o.title)}** — ${o.organization || o.platform}`
+          (o, i) => `${i + 1}. **${truncateTitle(o.title)}**, ${o.organization || o.platform}`
         );
         appendAssistant(
           `${t('agent.offerNotFound', { num: offerIndex + 1 })}\n\n${t('agent.availableOffers')}\n${lines.join('\n')}`
@@ -482,7 +588,7 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
 
     if (!target) {
       const lines = ranked.slice(0, 5).map(
-        (o, i) => `${i + 1}. **${truncateTitle(o.title)}** — ${o.organization || o.platform}`
+        (o, i) => `${i + 1}. **${truncateTitle(o.title)}**, ${o.organization || o.platform}`
       );
       appendAssistant(
         `${t('agent.alreadyAppliedAll', { count: ranked.length })}\n\n` +
@@ -507,26 +613,23 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
       return;
     }
 
-    try {
-      await api.post('/api/applications', {
-        opportunity: target._id,
-        status: 'submitted',
-        appliedDate: new Date().toISOString(),
-        notes: t('agent.applicationNotes')
-      });
-      const apps = await api.get('/api/applications');
-      setApplications(apps.data || []);
-      appendAssistant(
-        `${t('agent.applicationRecorded')}\n\n` +
-          `📌 **${truncateTitle(target.title)}**\n` +
-          `🏢 ${target.organization || target.platform}\n` +
-          `📍 ${target.ville || 'RDC'}\n\n` +
-          t('agent.jobsListFooter')
-      );
-      toast.success(t('agent.applicationCreated'));
-    } catch (e) {
-      appendAssistant(e.response?.data?.message || t('agent.applicationFailed'));
-    }
+    // WRITE action: stage only — never POST without ApplicationConfirmGate confirmation
+    setPendingApply({
+      offreId: target._id,
+      title: target.title,
+      organization: target.organization || target.platform,
+      ville: target.ville || target.city || 'RDC',
+      notes: t('agent.applicationNotes'),
+      awaitConfirmation: true,
+      source: 'chat'
+    });
+    appendAssistant(
+      `${t('agent.applyConfirmAsk')}\n\n` +
+        `📌 **${truncateTitle(target.title)}**\n` +
+        `🏢 ${target.organization || target.platform}\n` +
+        `📍 ${target.ville || 'RDC'}\n\n` +
+        t('agent.applyConfirmHint')
+    );
   };
 
   const handleApplicationAnalysis = () => {
@@ -594,7 +697,7 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
     const score = Math.round(top.aiAnalysis?.score ?? (top.aiRelevanceScore ?? 0) * 100);
     const runners = list.slice(1, 4).map(
       (o, i) =>
-        `${i + 2}. **${truncateTitle(o.title)}** — ${o.organization || o.platform} (score ${Math.round(o.aiAnalysis?.score ?? (o.aiRelevanceScore ?? 0) * 100)})`
+        `${i + 2}. **${truncateTitle(o.title)}**, ${o.organization || o.platform} (score ${Math.round(o.aiAnalysis?.score ?? (o.aiRelevanceScore ?? 0) * 100)})`
     );
     appendAssistant(
       `${t('agent.bestOfferTitle', { score })}\n\n` +
@@ -614,7 +717,7 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
     const ranked = filterSourcesOpportunities(opportunities, {}).slice(0, 12);
     const jobs = ranked.map(opportunityToJob);
     const ctx = systemCtx();
-    const locale = lang;
+    const locale = detectSpeechLanguage(userText, lang);
     try {
       const { data } = await api.post('/api/job-assistant/rdc-offers/chat', {
         message: userText,
@@ -629,23 +732,39 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
         },
         history: history
           .filter((m) => m.role === 'user' || m.role === 'assistant')
-          .slice(-8)
+          .slice(-16)
           .map((m) => ({ role: m.role, content: m.content }))
       });
       appendAssistant(data.reply || data.message || t('agent.replyUnavailable'), {
-        provider: data.provider
+        provider: data.provider,
+        stream: true
       });
+      noteProvider(data.provider);
     } catch (e) {
-      const local =
-        answerFromAgentContext(userText, systemCtx()) ||
-        (wantsSystemQuestion(userText) ? answerSystemQuestion(userText, systemCtx()) : null) ||
-        (wantsOpportunityCount(userText) ? answerOpportunityCount(systemCtx()) : null);
-      appendAssistant(
-        local ||
-          e.response?.data?.message ||
-          t('agent.agentUnavailable'),
-        local ? { provider: 'local' } : undefined
-      );
+      appendAssistant(e.response?.data?.message || t('agent.agentUnavailable'));
+    }
+  };
+
+  const handleToolCommand = async (userText) => {
+    try {
+      const { data } = await api.post('/api/voice/command', { text: userText, locale: lang });
+      const effects = planVoiceToolExecution(data.actions || []);
+      for (const effect of effects) {
+        if (effect.type === 'navigate') navigate(effect.path);
+      }
+      if (data.createdApplication) {
+        window.dispatchEvent(new CustomEvent('mecal:applications-updated'));
+      }
+      appendAssistant(data.reply || t('voice.commandDone'));
+      if (tts.enabled) {
+        try {
+          await tts.speak(data.reply || t('voice.commandDone'), { lang });
+        } catch {
+          /* optional */
+        }
+      }
+    } catch (e) {
+      appendAssistant(e.response?.data?.message || t('voice.commandError'));
     }
   };
 
@@ -653,6 +772,9 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
     async (text) => {
       const userText = (text || input).trim();
       if (!userText || isTyping) return;
+      speech.stop();
+      tts.stop();
+      setSpeechLang(detectSpeechLanguage(userText, lang));
       setInput('');
 
       const history = [...messages, { role: 'user', content: userText, timestamp: new Date().toISOString() }];
@@ -661,25 +783,14 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
       setIsTyping(true);
 
       try {
-      const contextual = answerFromAgentContext(userText, systemCtx());
-      if (contextual) {
-        appendAssistant(contextual, { provider: 'local' });
-      } else if (wantsShowProfile(userText)) {
-        handleShowProfile();
-      } else if (wantsCvOrLetter(userText)) {
-        await handleCvOrLetter(userText);
-      } else if (wantsOpportunityCount(userText)) {
-        await handleOpportunityCount();
-      } else if (wantsBestOfferOnPage(userText)) {
-        handleBestOffer();
-      } else if (wantsSystemQuestion(userText)) {
-        handleSystemHelp(userText);
-      } else if (wantsApply(userText)) {
-          await handleApply(userText);
+        if (wantsShowProfile(userText)) {
+          handleShowProfile();
+        } else if (wantsCvOrLetter(userText) && !wantsApply(userText)) {
+          await handleCvOrLetter(userText);
+        } else if (wantsVoiceAction(userText) || wantsApply(userText)) {
+          await handleToolCommand(userText);
         } else if (/^(oui|ok|vas-y|go)$/i.test(userText.trim())) {
           await handleApply('postule pour la prochaine offre');
-        } else if (wantsApplicationAnalysis(userText)) {
-          handleApplicationAnalysis();
         } else if (wantsJobSearch(userText)) {
           await handleJobSearch();
         } else {
@@ -690,7 +801,7 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [input, isTyping, messages, applications, opportunities, profile]
+    [input, isTyping, messages, applications, opportunities, profile, lang, speech, tts]
   );
 
   useEffect(() => {
@@ -702,100 +813,220 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
     return () => window.clearTimeout(timer);
   }, [seedPrompt, sendMessage, onSeedConsumed, convReady]);
 
-  return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('agent.title')}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        className={`flex h-[75vh] w-full flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900 ${
-          showHistory ? 'max-w-4xl' : 'max-w-2xl'
-        }`}
-      >
-        <div className="flex-shrink-0 bg-gradient-to-r from-purple-600 to-blue-600 px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-base">
-                🤖
-              </div>
-              <div>
-                <h2 className="text-sm font-semibold text-white">{t('agent.title')}</h2>
-                <p className="text-xs text-purple-200">● {t('agent.online')}</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-xl text-white/70 transition-colors hover:text-white"
-              aria-label={t('common.close')}
-            >
-              ✕
-            </button>
-          </div>
+  const agentState = speech.listening ? 'listening' : tts.speaking ? 'speaking' : isTyping ? 'thinking' : 'idle';
+  const statusText =
+    agentState === 'listening'
+      ? t('agent.micListening')
+      : agentState === 'speaking'
+        ? t('agent.statusSpeaking')
+        : agentState === 'thinking'
+          ? t('agent.thinking')
+          : degraded
+            ? t('agent.degradedMode')
+            : t('agent.online');
+  const fresh = messages.length === 1 && messages[0].role === 'assistant' && messages[0].content === starter;
+  const timeOf = (iso) => {
+    const d = iso ? new Date(iso) : null;
+    return d && !Number.isNaN(d.getTime()) ? d.toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' }) : '';
+  };
 
-          <div className="scrollbar-none mt-2 flex gap-1.5 overflow-x-auto pb-0.5">
-            {quickActions.map((action, idx) =>
-              idx === 0 ? (
-                <div key={action.label} className="flex flex-shrink-0 items-center gap-0.5">
-                  <button
-                    type="button"
-                    onClick={() => sendMessage(action.prompt)}
-                    disabled={docGenerating || !convReady}
-                    className="flex flex-shrink-0 items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-xs text-white transition-colors hover:bg-white/25"
-                  >
-                    {action.icon} {action.label}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowHistory((h) => !h)}
-                    className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full transition-colors ${
-                      showHistory ? 'bg-white/35 text-white' : 'bg-white/15 text-white hover:bg-white/25'
-                    }`}
-                    title={t('agent.history')}
-                    aria-label={t('agent.history')}
-                  >
-                    <History className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  key={action.label}
-                  type="button"
-                  onClick={() => sendMessage(action.prompt)}
-                  disabled={docGenerating || !convReady}
-                  className="flex flex-shrink-0 items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-xs text-white transition-colors hover:bg-white/25"
-                >
-                  {action.icon} {action.label}
-                </button>
-              )
-            )}
+  return (
+    <div className="pointer-events-none fixed inset-0 z-[100]">
+      <div
+        ref={drag.panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('agent.title')}
+        className={`pointer-events-auto absolute flex h-[min(75vh,100dvh)] w-[min(42rem,calc(100vw-1rem))] flex-col agent-window-in overflow-hidden rounded-[26px] border border-slate-200/80 bg-white shadow-[0_32px_90px_-28px_rgba(20,40,90,0.6)] dark:border-slate-700 dark:bg-slate-900 max-sm:!left-0 max-sm:!top-0 max-sm:h-[100dvh] max-sm:max-h-none max-sm:rounded-none max-sm:w-full ${
+          showHistory ? 'md:w-[min(56rem,calc(100vw-1rem))]' : ''
+        }`}
+        style={{ left: drag.pos.x, top: drag.pos.y }}
+      >
+        <input
+          ref={cvFileRef}
+          type="file"
+          className="hidden"
+          accept={CV_ACCEPT}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleCvUpload(file);
+            e.target.value = '';
+          }}
+        />
+        <div
+          className="relative flex-shrink-0 cursor-grab overflow-hidden bg-[#24478a] px-4 pb-3.5 pt-2 text-white active:cursor-grabbing"
+          onPointerDown={drag.onHandlePointerDown}
+          onPointerMove={drag.onHandlePointerMove}
+          onPointerUp={drag.onHandlePointerUp}
+          onPointerCancel={drag.onHandlePointerUp}
+        >
+          <span className="pointer-events-none absolute -right-12 -top-16 h-44 w-44 rounded-full border-[26px] border-white/5" aria-hidden="true" />
+          <span className="pointer-events-none absolute -bottom-20 left-1/3 h-40 w-40 rounded-full border-[22px] border-white/5" aria-hidden="true" />
+          <span className="relative mx-auto mb-2 block h-1 w-10 rounded-full bg-white/25" aria-hidden="true" />
+          <div className="relative flex items-center gap-3.5">
+            <AgentOrb size={54} tone="onBlue" state={agentState} />
+            <div className="min-w-0 flex-1">
+              <h2 className="text-base font-extrabold leading-tight tracking-tight">{t('agent.title')}</h2>
+              <p className="mt-1 flex items-center gap-2 text-xs font-semibold text-blue-100">
+                {agentState === 'idle' ? (
+                  <span className={`h-2 w-2 flex-none rounded-full ${degraded ? 'bg-amber-300' : 'animate-pulse bg-emerald-400'}`} aria-hidden="true" />
+                ) : (
+                  <EqBars className="flex-none text-white" height={12} />
+                )}
+                <span className="min-w-0 break-words">{statusText}</span>
+              </p>
+            </div>
+            <div className="flex flex-none items-center gap-2">
+              <button
+                type="button"
+                onClick={() => tts.setEnabled(!tts.enabled)}
+                className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-bold transition ${
+                  tts.enabled ? 'bg-white text-[#24478a] shadow-sm' : 'bg-white/15 text-white hover:bg-white/25'
+                }`}
+                title={tts.enabled ? t('agent.ttsOn') : t('agent.ttsOff')}
+                aria-pressed={tts.enabled}
+              >
+                {tts.enabled ? <Volume2 className="h-4 w-4" aria-hidden="true" /> : <VolumeX className="h-4 w-4" aria-hidden="true" />}
+                <span className="hidden sm:inline">{tts.enabled ? t('agent.ttsOnShort') : t('agent.ttsOffShort')}</span>
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="mecal-x-pop grid h-9 w-9 place-items-center rounded-full bg-white/15 text-white transition hover:rotate-90 hover:bg-red-600"
+                aria-label={t('common.close')}
+              >
+                <X className="h-4 w-4" strokeWidth={2.4} />
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="flex min-h-0 flex-1">
+        {tts.enabled ? (
+          <div className="flex flex-shrink-0 flex-wrap items-center gap-2 border-b border-[#d5e0f3] bg-[#e3ebf9] px-4 py-2 dark:border-slate-700 dark:bg-slate-800">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-[#24478a] dark:text-blue-200">
+              <Volume2 className="h-3.5 w-3.5" aria-hidden="true" />
+              {t('agent.voiceLabel')}
+            </span>
+            <select
+              value={tts.voice}
+              onChange={(e) => tts.setVoice(e.target.value)}
+              className="h-8 rounded-lg border border-[#c9d8f1] bg-white px-2.5 text-xs font-semibold text-slate-700 outline-none focus:border-[#24478a] dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+              title={t('agent.ttsVoice')}
+              aria-label={t('agent.ttsVoice')}
+            >
+              {tts.voices.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {t(v.labelKey)}
+                </option>
+              ))}
+            </select>
+            <select
+              value={tts.model}
+              onChange={(e) => tts.setModel(e.target.value)}
+              className="h-8 rounded-lg border border-[#c9d8f1] bg-white px-2.5 text-xs font-semibold text-slate-700 outline-none focus:border-[#24478a] dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+              title={t('agent.ttsModel')}
+              aria-label={t('agent.ttsModel')}
+            >
+              {tts.models.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {t(v.labelKey)}
+                </option>
+              ))}
+            </select>
+            {tts.speaking ? (
+              <button type="button" onClick={() => tts.stop()} className="h-8 rounded-lg bg-red-600 px-3 text-xs font-bold text-white transition hover:bg-red-700">
+                {t('agent.ttsStop')}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
+        <div className="scrollbar-none flex flex-shrink-0 gap-2 overflow-x-auto border-b border-slate-200 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900">
+          <button
+            type="button"
+            onClick={() => cvFileRef.current?.click()}
+            disabled={cvUploading}
+            className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-full bg-[#24478a] px-3.5 py-1.5 text-xs font-bold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#1c3a72] disabled:opacity-50"
+          >
+            <Upload className="h-3.5 w-3.5" aria-hidden="true" /> {t('agent.importCv')}
+          </button>
+          {quickActions.map((action, idx) => (
+            <div key={action.label} className="flex flex-shrink-0 items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => sendMessage(action.prompt)}
+                disabled={docGenerating || !convReady}
+                className="inline-flex flex-shrink-0 items-center gap-2 rounded-full bg-white py-1 pl-1 pr-3 text-xs font-bold text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 dark:bg-slate-800 dark:text-slate-100 dark:ring-slate-600"
+              >
+                <span className={`grid h-6 w-6 place-items-center rounded-full ${TOOL_TONES[idx % TOOL_TONES.length]}`}>
+                  <action.icon className="h-3.5 w-3.5" strokeWidth={2.2} aria-hidden />
+                </span>
+                {action.label}
+              </button>
+              {idx === 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setShowHistory((h) => !h)}
+                  className={`grid h-8 w-8 flex-shrink-0 place-items-center rounded-full ring-1 transition ${
+                    showHistory ? 'bg-[#24478a] text-white ring-[#24478a]' : 'bg-white text-slate-500 ring-slate-200 hover:text-[#24478a] dark:bg-slate-800 dark:ring-slate-600'
+                  }`}
+                  title={t('agent.history')}
+                  aria-label={t('agent.history')}
+                >
+                  <History className="h-4 w-4" />
+                </button>
+              ) : null}
+            </div>
+          ))}
+        </div>
+
+        <div className="relative flex min-h-0 flex-1">
           {showHistory ? (
-            <AgentHistoryPanel
-              conversations={conversations}
-              activeId={activeConversationId}
-              onSelect={selectConversation}
-              onNew={createNewConversation}
-              onDelete={deleteConversation}
-              onClose={() => setShowHistory(false)}
-            />
+            <>
+              <button
+                type="button"
+                className="absolute inset-0 z-10 bg-slate-900/20 md:hidden"
+                aria-label={t('agent.closeHistory')}
+                onClick={() => setShowHistory(false)}
+              />
+              <div className="absolute inset-y-0 left-0 z-20 h-full w-[min(88%,260px)] shadow-xl md:relative md:z-auto md:w-[260px] md:shadow-none">
+                <AgentHistoryPanel
+                  conversations={conversations}
+                  activeId={activeConversationId}
+                  onSelect={(id) => {
+                    selectConversation(id);
+                    if (window.matchMedia('(max-width: 767px)').matches) setShowHistory(false);
+                  }}
+                  onNew={createNewConversation}
+                  onDelete={deleteConversation}
+                  onClose={() => setShowHistory(false)}
+                />
+              </div>
+            </>
           ) : null}
 
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <DegradedModeBanner show={degraded} label={t('agent.degradedMode')} />
+        {cvMeta?.fileName && !showCVPanel ? (
+          <div className="mx-3 mt-2 flex flex-shrink-0 items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
+            <span className="truncate font-medium">
+              {t('agent.cvImportedBanner', { name: cvMeta.fileName })}
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowCVPanel(true)}
+              className="ml-auto flex-shrink-0 font-semibold text-blue-700 hover:underline dark:text-blue-300"
+            >
+              {t('agent.myCv')}
+            </button>
+          </div>
+        ) : null}
         {showCVPanel ? (
-          <div className="mx-3 mb-2 flex-shrink-0 overflow-hidden rounded-2xl border border-purple-100 bg-white shadow-lg dark:border-purple-900 dark:bg-slate-900">
-            <div className="flex items-center justify-between border-b border-purple-100 bg-purple-50 px-4 py-3 dark:border-purple-900 dark:bg-purple-950/40">
+          <div className="mx-3 mb-2 mt-2 flex-shrink-0 overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-lg dark:border-blue-900 dark:bg-slate-900">
+            <div className="flex items-center justify-between border-b border-blue-100 bg-blue-50 px-4 py-3 dark:border-blue-900 dark:bg-blue-950/40">
               <div className="flex items-center gap-2">
-                <span className="text-purple-600">📎</span>
-                <span className="text-sm font-semibold text-purple-800 dark:text-purple-200">{t('agent.myCv')}</span>
+                <Paperclip className="h-4 w-4 text-blue-600" strokeWidth={2} aria-hidden />
+                <span className="text-sm font-semibold text-blue-800 dark:text-blue-200">{t('agent.myCv')}</span>
                 {cvData ? (
                   <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">{t('agent.cvLoaded')}</span>
                 ) : null}
@@ -805,16 +1036,16 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
                 onClick={() => setShowCVPanel(false)}
                 className="text-sm text-gray-400 hover:text-gray-600"
               >
-                ✕
+                <X className="h-4 w-4" strokeWidth={2} />
               </button>
             </div>
 
             {cvUploading ? (
-              <p className="px-4 py-6 text-center text-xs text-purple-700">{t('agent.cvParsing')}</p>
+              <p className="px-4 py-6 text-center text-xs text-blue-700">{t('agent.cvParsing')}</p>
             ) : cvData ? (
               <div className="px-4 py-3">
                 <div className="mb-3 flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2 dark:bg-blue-950/40">
-                  <span className="text-sm text-blue-500">📄</span>
+                  <FileText className="h-4 w-4 shrink-0 text-blue-500" strokeWidth={2} aria-hidden />
                   <span className="truncate text-sm font-medium text-blue-700 dark:text-blue-300">
                     {cvData.fileName}
                   </span>
@@ -822,17 +1053,18 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
 
                 <div className="mb-3 grid grid-cols-2 gap-2">
                   {[
-                    { icon: '📧', label: t('jobAssistant.profileEmail'), value: cvData.email },
-                    { icon: '📞', label: t('jobAssistant.profilePhone'), value: cvData.phone },
-                    { icon: '🎓', label: t('jobAssistant.profileEducation'), value: cvData.formation },
-                    { icon: '💼', label: t('jobAssistant.profileExperience'), value: cvData.experience }
+                    { icon: Mail, label: t('jobAssistant.profileEmail'), value: cvData.email },
+                    { icon: Phone, label: t('jobAssistant.profilePhone'), value: cvData.phone },
+                    { icon: GraduationCap, label: t('jobAssistant.profileEducation'), value: cvData.formation },
+                    { icon: Briefcase, label: t('jobAssistant.profileExperience'), value: cvData.experience }
                   ].map((item) => (
                     <div key={item.label} className="rounded-lg bg-gray-50 px-2.5 py-2 dark:bg-slate-800">
-                      <p className="mb-0.5 text-xs text-gray-400">
-                        {item.icon} {item.label}
+                      <p className="mb-0.5 flex items-center gap-1 text-xs text-gray-400">
+                        <item.icon className="h-3 w-3" strokeWidth={2} aria-hidden />
+                        {item.label}
                       </p>
                       <p className="truncate text-xs font-medium text-gray-700 dark:text-slate-200">
-                        {item.value || '—'}
+                        {item.value || 'n/d'}
                       </p>
                     </div>
                   ))}
@@ -840,7 +1072,8 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
 
                 <div className="flex gap-2">
                   <label className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-gray-100 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-slate-800 dark:text-slate-200">
-                    🔄 {t('agent.changeCv')}
+                    <RefreshCw className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                    {t('agent.changeCv')}
                     <input
                       type="file"
                       className="hidden"
@@ -859,9 +1092,10 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
                       setShowCVPanel(false);
                     }}
                     disabled={docGenerating}
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-purple-600 py-2 text-xs font-medium text-white transition-colors hover:bg-purple-700 disabled:opacity-50"
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-blue-700 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-800 disabled:opacity-50"
                   >
-                    ✨ {t('agent.generateCvBtn')}
+                    <Sparkles className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                    {t('agent.generateCvBtn')}
                   </button>
                   <button
                     type="button"
@@ -872,17 +1106,18 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
                     disabled={docGenerating}
                     className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-blue-600 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
                   >
-                    ✏️ {t('agent.fixCvBtn')}
+                    <Pencil className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                    {t('agent.fixCvBtn')}
                   </button>
                 </div>
               </div>
             ) : (
               <div className="px-4 py-4">
-                <label className="group flex w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-purple-200 bg-purple-50/50 py-5 transition-colors hover:bg-purple-50 dark:border-purple-800 dark:bg-purple-950/20">
-                  <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-purple-100 transition-colors group-hover:bg-purple-200">
-                    <span className="text-xl">⬆️</span>
+                <label className="group flex w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-blue-200 bg-blue-50/50 py-5 transition-colors hover:bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20">
+                  <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 transition-colors group-hover:bg-blue-200">
+                    <Upload className="h-5 w-5 text-blue-600" strokeWidth={2} aria-hidden />
                   </div>
-                  <span className="text-sm font-semibold text-purple-700 dark:text-purple-300">{t('agent.importCv')}</span>
+                  <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">{t('agent.importCv')}</span>
                   <span className="mt-1 text-xs text-gray-400">{t('agent.cvFormats')}</span>
                   <input
                     type="file"
@@ -900,50 +1135,88 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
           </div>
         ) : null}
 
-        <div className="agent-chat-scroll flex-1 space-y-3 overflow-y-auto bg-gray-50 p-4 dark:bg-slate-950">
-          {messages.map((msg, i) => (
-            <div key={i} className={`flex gap-2 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-              <div
-                className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs ${
-                  msg.role === 'user'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gradient-to-br from-purple-500 to-blue-500 text-white'
-                }`}
-              >
-                {msg.role === 'user' ? '👤' : '🤖'}
+        <div ref={chatScrollRef} className="agent-chat-scroll flex-1 space-y-5 overflow-y-auto bg-[#f3f6fc] p-4 dark:bg-slate-950" style={{ backgroundImage: CHAT_DOTS }}>
+          {fresh ? (
+            <div className="agent-pop pb-2 pt-3">
+              <div className="mx-auto flex max-w-md flex-col items-center text-center">
+                <AgentOrb size={96} tone="onLight" state={agentState} floating />
+                <h3 className="mt-5 text-xl font-extrabold leading-tight text-slate-900 dark:text-white">{t('agent.heroTitle')}</h3>
+                <p className="mt-2 text-[13px] leading-relaxed text-slate-500 dark:text-slate-400">{t('agent.heroText')}</p>
               </div>
-              <div
-                className={`max-w-[78%] rounded-2xl px-3 py-2 text-sm ${
-                  msg.role === 'user'
-                    ? 'rounded-tr-none bg-blue-600 text-white'
-                    : 'rounded-tl-none border border-gray-100 bg-white text-gray-800 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100'
-                }`}
-              >
-                <MessageContent
-                  content={msg.content}
-                  document={msg.document}
-                  provider={msg.provider}
-                  isUser={msg.role === 'user'}
-                  t={t}
-                />
+              <p className="mt-6 text-center text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">{t('agent.suggestionsTitle')}</p>
+              <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+                {quickActions.map((action, idx) => (
+                  <button
+                    key={action.label}
+                    type="button"
+                    onClick={() => sendMessage(action.prompt)}
+                    disabled={docGenerating || !convReady}
+                    className="group flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#24478a]/40 hover:shadow-md disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800"
+                  >
+                    <span className={`grid h-10 w-10 flex-none place-items-center rounded-xl ${TOOL_TONES[idx % TOOL_TONES.length]}`}>
+                      <action.icon className="h-5 w-5" strokeWidth={2} aria-hidden />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[13px] font-bold text-slate-900 dark:text-white">{action.label}</span>
+                      <span className="mt-0.5 block break-words text-xs leading-snug text-slate-500 dark:text-slate-400">{action.prompt}</span>
+                    </span>
+                    <ArrowUpRight className="h-4 w-4 flex-none text-slate-300 transition group-hover:text-[#24478a]" aria-hidden="true" />
+                  </button>
+                ))}
               </div>
             </div>
-          ))}
+          ) : null}
+
+          {messages.map((msg, i) => {
+            if (i === 0 && msg.role === 'assistant' && msg.content === starter) return null;
+            const mine = msg.role === 'user';
+            const time = timeOf(msg.timestamp);
+            return (
+              <div key={i} className={`agent-pop flex items-end gap-2.5 ${mine ? 'flex-row-reverse' : ''}`}>
+                {mine ? (
+                  <span className="grid h-9 w-9 flex-shrink-0 place-items-center overflow-hidden rounded-full bg-[#e3ebf9] text-xs font-extrabold text-[#24478a] ring-2 ring-white dark:ring-slate-800">
+                    {user?.avatar ? <img src={user.avatar} alt="" className="h-full w-full object-cover" draggable={false} /> : userInitials(user)}
+                  </span>
+                ) : (
+                  <AgentOrb size={38} tone="onLight" state={msg.streaming ? 'speaking' : 'idle'} className="flex-shrink-0" />
+                )}
+                <div className={`flex min-w-0 max-w-[min(82%,38rem)] flex-col ${mine ? 'items-end' : 'items-start'}`}>
+                  <span className="mb-1 flex items-center gap-2 px-1 text-[11px] font-bold text-slate-400">
+                    {mine ? user?.name?.split(' ')[0] || t('agent.you') : t('agent.assistantName')}
+                    {time ? <span className="font-medium">{time}</span> : null}
+                  </span>
+                  <div
+                    className={`min-w-0 max-w-full rounded-2xl px-4 py-3 text-[13px] leading-relaxed ${
+                      mine
+                        ? 'rounded-br-md bg-[#24478a] text-white shadow-sm'
+                        : 'rounded-bl-md border border-slate-200 bg-white text-slate-800 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100'
+                    }`}
+                  >
+                    <MessageContent
+                      content={msg.content}
+                      document={msg.document}
+                      provider={msg.provider}
+                      isUser={mine}
+                      streaming={Boolean(msg.streaming)}
+                      t={t}
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
 
           {isTyping ? (
-            <div className="flex gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-blue-500 text-xs text-white">
-                🤖
-              </div>
-              <div className="rounded-2xl rounded-tl-none border border-gray-100 bg-white px-3 py-2 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-                <div className="flex h-4 items-center gap-1">
-                  {[0, 150, 300].map((delay) => (
-                    <span
-                      key={delay}
-                      className="h-1.5 w-1.5 animate-bounce rounded-full bg-purple-400"
-                      style={{ animationDelay: `${delay}ms` }}
-                    />
-                  ))}
+            <div className="agent-pop flex items-end gap-2.5">
+              <AgentOrb size={38} tone="onLight" state="thinking" className="flex-shrink-0" />
+              <div className="rounded-2xl rounded-bl-md border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-4 items-center gap-1" aria-hidden>
+                    {[0, 150, 300].map((delay) => (
+                      <span key={delay} className="h-2 w-2 animate-bounce rounded-full bg-[#24478a]" style={{ animationDelay: `${delay}ms` }} />
+                    ))}
+                  </div>
+                  <span className="text-xs font-bold text-[#24478a] dark:text-blue-300">{t('agent.thinking')}</span>
                 </div>
               </div>
             </div>
@@ -951,19 +1224,24 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
           <div ref={bottomRef} />
         </div>
 
-        <div className="flex-shrink-0 border-t bg-white px-3 py-3 dark:border-slate-700 dark:bg-slate-900">
-          <div className="flex items-end gap-2">
+        <div className="flex-shrink-0 border-t border-slate-200 bg-white px-3.5 pb-3 pt-3 dark:border-slate-700 dark:bg-slate-900">
+          <div
+            className={`flex items-end gap-2 rounded-2xl border p-1.5 transition ${
+              speech.listening
+                ? 'border-rose-400 bg-rose-50 ring-4 ring-rose-400/15 dark:bg-rose-950/20'
+                : 'border-slate-200 bg-slate-50 focus-within:border-[#24478a] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#24478a]/15 dark:border-slate-600 dark:bg-slate-800'
+            }`}
+          >
             <button
               type="button"
               onClick={() => setShowCVPanel((v) => !v)}
-              className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border-2 text-lg transition-all duration-200 ${
-                showCVPanel
-                  ? 'border-purple-600 bg-purple-600 text-white'
-                  : 'border-gray-300 bg-white text-gray-500 hover:border-purple-400 hover:text-purple-600 dark:border-slate-600 dark:bg-slate-800'
+              className={`grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl transition ${
+                showCVPanel ? 'bg-[#24478a] text-white' : 'bg-white text-slate-500 ring-1 ring-slate-200 hover:text-[#24478a] dark:bg-slate-700 dark:ring-slate-600'
               }`}
               title={t('agent.cvPanelToggle')}
+              aria-label={t('agent.cvPanelToggle')}
             >
-              {showCVPanel ? '✕' : '+'}
+              {showCVPanel ? <X className="h-4 w-4" strokeWidth={2.2} /> : <Plus className="h-4 w-4" strokeWidth={2.2} />}
             </button>
 
             <textarea
@@ -975,22 +1253,61 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
                   sendMessage();
                 }
               }}
-              placeholder={t('agent.inputPlaceholder')}
+              placeholder={speech.listening ? t('agent.micListening') : t('agent.inputPlaceholder')}
               rows={1}
-              style={{ minHeight: '38px' }}
-              className="max-h-24 flex-1 resize-none rounded-xl border border-gray-200 px-3 py-2 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-purple-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+              style={{ minHeight: '40px' }}
+              className="max-h-28 min-w-0 flex-1 resize-none border-0 bg-transparent px-2 py-2.5 text-sm leading-relaxed text-slate-900 outline-none ring-0 placeholder:text-slate-400 focus:outline-none focus:ring-0 dark:text-white"
             />
+
+            {speech.listening ? <EqBars className="mb-3.5 flex-none text-rose-500" height={16} /> : null}
+
+            <button
+              type="button"
+              onClick={() => {
+                if (!speech.supported) {
+                  toast.error(t('agent.micUnsupported'));
+                  return;
+                }
+                setMicError(null);
+                speech.toggle();
+              }}
+              disabled={isTyping}
+              className={`relative grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl transition disabled:opacity-40 ${
+                speech.listening ? 'bg-rose-500 text-white' : 'bg-white text-slate-500 ring-1 ring-slate-200 hover:text-[#24478a] dark:bg-slate-700 dark:text-slate-200 dark:ring-slate-600'
+              }`}
+              title={speech.listening ? t('agent.micStop') : t('agent.micStart')}
+              aria-pressed={speech.listening}
+              aria-label={speech.listening ? t('agent.micStop') : t('agent.micStart')}
+            >
+              {speech.listening ? <span className="agent-ring agent-ring-fast absolute inset-0 rounded-xl bg-rose-400" aria-hidden="true" /> : null}
+              {speech.listening ? <MicOff className="relative h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            </button>
 
             <button
               type="button"
               onClick={() => sendMessage()}
               disabled={!input.trim() || isTyping}
-              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-purple-600 to-blue-600 text-base text-white transition-all hover:opacity-90 disabled:opacity-40"
+              className="group grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl bg-[#24478a] text-white shadow-sm transition hover:bg-[#1c3a72] disabled:bg-slate-300 disabled:shadow-none dark:disabled:bg-slate-600"
+              title={t('agent.sendMessage')}
+              aria-label={t('agent.sendMessage')}
             >
-              ➤
+              <Send className="h-4 w-4 transition group-enabled:group-hover:-translate-y-0.5 group-enabled:group-hover:translate-x-0.5" aria-hidden="true" />
             </button>
           </div>
-          <p className="mt-1 text-center text-xs text-gray-400">{t('agent.inputHint')}</p>
+          <p className="mt-2 text-center text-[11px] font-medium text-slate-400">
+            {micError
+              ? ({
+                  unsupported: t('agent.micErrorUnsupported'),
+                  'not-allowed': t('agent.micErrorNotAllowed'),
+                  'no-speech': t('agent.micErrorNoSpeech'),
+                  network: t('agent.micErrorNetwork'),
+                  start_failed: t('agent.micErrorStartFailed'),
+                  'audio-capture': t('agent.micErrorNotAllowed')
+                }[micError] || t('agent.micErrorUnknown'))
+              : tts.error && tts.enabled
+                ? t('agent.ttsError')
+                : t('agent.inputHint')}
+          </p>
         </div>
           </div>
         </div>

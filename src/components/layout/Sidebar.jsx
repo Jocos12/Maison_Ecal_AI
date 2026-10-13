@@ -1,20 +1,6 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import {
-  Archive,
-  BarChart3,
-  Bell,
-  Bot,
-  Briefcase,
-  ClipboardList,
-  MessageSquare,
-  FolderTree,
-  Globe2,
-  LayoutDashboard,
-  Link2,
-  Mail,
-  Settings,
-  ShieldCheck
-} from 'lucide-react';
+import DrcFlag from './DrcFlag.jsx';
+import { NAV_GROUPS } from '../../config/navigation.js';
 import { useEffect, useMemo, useState } from 'react';
 import { useTheme } from '../../context/ThemeContext.jsx';
 import { useApp } from '../../context/AppContext.jsx';
@@ -24,86 +10,6 @@ import { api } from '../../api/client.js';
 import { isLinkedInPanelStale } from '../linkedin/LinkedInLogistiqueRDC.jsx';
 
 const cities = ['Bukavu', 'Goma', 'Kinshasa', 'Kalemie', 'Lubumbashi'];
-
-function buildNavGroups(t, pendingCount = 0) {
-  return [
-    {
-      titleKey: 'sidebar.groups.main',
-      items: [
-        { to: '/dashboard', labelKey: 'sidebar.dashboard', icon: LayoutDashboard, color: 'text-blue-400' },
-        { to: '/opportunities', labelKey: 'sidebar.opportunities', icon: Briefcase, color: 'text-emerald-400', badge: 'new' },
-        { to: '/applications', labelKey: 'sidebar.applications', icon: ClipboardList, color: 'text-amber-400', badge: 'pending' }
-      ]
-    },
-    {
-      titleKey: 'sidebar.groups.watch',
-      items: [
-        { to: '/sources', labelKey: 'sidebar.sources', icon: Globe2, color: 'text-cyan-400' },
-        { to: '/categories', labelKey: 'sidebar.categories', icon: FolderTree, color: 'text-violet-400' },
-        { to: '/agent', labelKey: 'sidebar.agent', icon: Bot, color: 'text-fuchsia-400', badge: 'actif' }
-      ]
-    },
-    {
-      titleKey: 'sidebar.groups.jobs',
-      items: [
-        {
-          to: '/assistant-emploi',
-          labelKey: 'sidebar.jobAssistant',
-          icon: MessageSquare,
-          color: 'text-lime-400',
-          navActive: (_, loc) =>
-            loc.pathname === '/assistant-emploi' && !loc.search.includes('section=linkedin')
-        },
-        {
-          to: '/assistant-emploi?section=linkedin',
-          labelKey: 'sidebar.linkedin',
-          icon: Link2,
-          color: 'text-[#0A66C2]',
-          linkedInDot: true,
-          navActive: (_, loc) =>
-            loc.pathname === '/assistant-emploi' && loc.search.includes('section=linkedin')
-        }
-      ]
-    },
-    {
-      titleKey: 'sidebar.groups.comms',
-      items: [
-        { to: '/messaging', labelKey: 'sidebar.messaging', icon: Mail, color: 'text-red-400', badge: '0' },
-        { to: '/marketing', labelKey: 'sidebar.marketing', icon: Bell, color: 'text-orange-400' }
-      ]
-    },
-    {
-      titleKey: 'sidebar.groups.analysis',
-      items: [
-        { to: '/analytics', labelKey: 'sidebar.analytics', icon: BarChart3, color: 'text-sky-400' },
-        { to: '/alerts', labelKey: 'sidebar.alerts', icon: Bell, color: 'text-rose-400' }
-      ]
-    },
-    {
-      titleKey: 'sidebar.groups.data',
-      items: [
-        { to: '/archive', labelKey: 'sidebar.archive', icon: Archive, color: 'text-slate-400' },
-        { to: '/settings', labelKey: 'sidebar.settings', icon: Settings, color: 'text-indigo-400' }
-      ]
-    },
-    ...(pendingCount >= 0
-      ? [
-          {
-            titleKey: 'sidebar.groups.admin',
-            items: [
-              {
-                to: '/admin/users',
-                labelKey: 'sidebar.users',
-                icon: ShieldCheck,
-                color: 'text-violet-400',
-                badge: pendingCount > 0 ? String(pendingCount) : null
-              }
-            ]
-          }
-        ]
-      : [])
-  ];
-}
 
 function resolveBadgeLabel(badge, t) {
   if (badge === 'new') return t('badges.new');
@@ -120,11 +26,12 @@ function isNavItemActive(to, navActive, location) {
   return location.search === `?${query}` || location.search.includes(query);
 }
 
-export default function Sidebar({ variant = 'desktop', onNavigate }) {
+/** Sidebar content: brand card, navigation groups and city filters. The dock provides the column around it. */
+export default function Sidebar({ compact = false, onNavigate }) {
   const location = useLocation();
   const { isDark } = useTheme();
   const { user } = useApp();
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const gmailUnread = useGmailUnreadCount();
   const [linkedinStale, setLinkedinStale] = useState(() => isLinkedInPanelStale());
   const [pendingApprovals, setPendingApprovals] = useState(0);
@@ -168,27 +75,27 @@ export default function Sidebar({ variant = 'desktop', onNavigate }) {
     };
   }, [isAdmin, location.pathname]);
 
-  const navGroups = useMemo(() => {
-    if (!isAdmin) {
-      return buildNavGroups(t, -1).filter((g) => g.titleKey !== 'sidebar.groups.admin');
-    }
-    return buildNavGroups(t, pendingApprovals);
-  }, [t, lang, isAdmin, pendingApprovals]);
+  const navGroups = useMemo(
+    () =>
+      NAV_GROUPS.filter((group) => !group.adminOnly || isAdmin).map((group) =>
+        group.adminOnly
+          ? {
+              ...group,
+              items: group.items.map((item) => ({
+                ...item,
+                badge: pendingApprovals > 0 ? String(pendingApprovals) : null
+              }))
+            }
+          : group
+      ),
+    [isAdmin, pendingApprovals]
+  );
 
   const toggleCity = (city) => {
     setSelectedCities((current) =>
       current.includes(city) ? current.filter((value) => value !== city) : [...current, city]
     );
   };
-
-  const asideClass =
-    variant === 'mobile'
-      ? `app-sidebar fixed inset-y-0 left-0 z-50 flex h-full w-72 flex-col overflow-hidden border-r shadow-2xl ${
-          isDark ? 'border-slate-800 bg-[#0f172a]' : 'border-gray-100 bg-white'
-        }`
-      : `app-sidebar hidden h-full w-72 shrink-0 flex-col overflow-hidden border-r md:flex ${
-          isDark ? 'border-slate-800 bg-[#0f172a]' : 'border-gray-100 bg-white'
-        }`;
 
   const groupLabel = isDark ? 'text-slate-500' : 'text-slate-400';
   const navIdle = isDark
@@ -201,19 +108,36 @@ export default function Sidebar({ variant = 'desktop', onNavigate }) {
   const cityLabel = isDark ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-900';
 
   return (
-    <aside className={asideClass}>
-      <div className="m-3 flex-shrink-0 rounded-xl bg-gradient-to-br from-blue-700 to-blue-900 p-4 text-white">
-        <p className="text-xs font-medium uppercase tracking-wide text-blue-200">M-ECAL</p>
-        <p className="mt-0.5 text-base font-bold">{t('sidebar.brandTitle')}</p>
-        <p className="mt-1 text-xs text-blue-200">{t('sidebar.brandSubtitle')}</p>
-      </div>
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      {compact ? (
+        <div className="h-3 flex-shrink-0" />
+      ) : (
+        <div className="m-3 flex-shrink-0 rounded-2xl bg-[#24478a] p-4 text-white">
+          <div className="flex items-center gap-3">
+            <span className="block h-10 w-10 flex-none overflow-hidden rounded-full shadow-md ring-2 ring-white/80">
+              <DrcFlag round className="h-full w-full" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-blue-200">M-ECAL</p>
+              <p className="mt-0.5 text-[15px] font-bold leading-tight">{t('sidebar.brandTitle')}</p>
+            </div>
+          </div>
+          <p className="mt-3.5 border-t border-white/20 pt-3 text-xs leading-relaxed text-blue-100">
+            {t('sidebar.brandSubtitle')}
+          </p>
+        </div>
+      )}
 
       <nav className="sidebar-scroll flex-1 space-y-1 overflow-y-auto px-3 pb-4">
       {navGroups.map((group) => (
         <div key={group.titleKey} className="space-y-0.5">
-          <p className={`px-3 pb-1 pt-3 text-[10px] font-black uppercase tracking-[0.22em] ${groupLabel}`}>
-            {t(group.titleKey)}
-          </p>
+          {compact ? (
+            <div className={`mx-2 my-2 border-t ${isDark ? 'border-slate-700/70' : 'border-slate-200'}`} />
+          ) : (
+            <p className={`px-3 pb-1 pt-3 text-[10px] font-black uppercase tracking-[0.22em] ${groupLabel}`}>
+              {t(group.titleKey)}
+            </p>
+          )}
           {group.items.map(({ to, labelKey, icon: Icon, color, badge, linkedInDot, navActive }) => {
             const gmailBadge =
               gmailUnread > 0 ? (gmailUnread > 99 ? '99+' : String(gmailUnread)) : null;
@@ -224,9 +148,12 @@ export default function Sidebar({ variant = 'desktop', onNavigate }) {
                 key={to}
                 to={to}
                 onClick={() => onNavigate?.()}
-                className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200 ${
+                title={compact ? t(labelKey) : undefined}
+                className={`group flex items-center gap-3 rounded-xl py-2.5 text-sm font-semibold transition-all duration-200 ${
+                  compact ? 'justify-center px-0' : 'px-3'
+                } ${
                   isActive
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25'
+                    ? 'bg-[#24478a] text-white shadow-lg shadow-[#24478a]/25'
                     : navIdle
                 }`}
               >
@@ -236,7 +163,7 @@ export default function Sidebar({ variant = 'desktop', onNavigate }) {
                   }`}
                 >
                   <Icon className={`h-4 w-4 ${isActive ? 'text-white' : color}`} />
-                  {linkedInDot && linkedinStale ? (
+                  {(linkedInDot && linkedinStale) || (compact && visibleBadge) ? (
                     <span
                       className={`absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 bg-red-500 ${
                         isDark ? 'border-[#0f172a]' : 'border-white'
@@ -244,8 +171,8 @@ export default function Sidebar({ variant = 'desktop', onNavigate }) {
                     />
                   ) : null}
                 </span>
-                <span className="leading-snug">{t(labelKey)}</span>
-                {visibleBadge ? (
+                {compact ? null : <span className="whitespace-nowrap leading-snug">{t(labelKey)}</span>}
+                {visibleBadge && !compact ? (
                   <span
                     className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold ${
                       isActive ? 'bg-white/20 text-white' : 'bg-red-500 text-white shadow-sm'
@@ -260,6 +187,7 @@ export default function Sidebar({ variant = 'desktop', onNavigate }) {
         </div>
       ))}
 
+      {compact ? null : (
       <div className={`mt-4 rounded-2xl border p-3 ${citiesBox}`}>
         <p className={`text-xs font-black uppercase tracking-wide ${groupLabel}`}>{t('sidebar.citiesTitle')}</p>
         <div className="mt-2 space-y-1">
@@ -272,14 +200,15 @@ export default function Sidebar({ variant = 'desktop', onNavigate }) {
                 type="checkbox"
                 checked={selectedCities.includes(city)}
                 onChange={() => toggleCity(city)}
-                className="accent-blue-500"
+                className="accent-[#24478a]"
               />
               {city}
             </label>
           ))}
         </div>
       </div>
+      )}
       </nav>
-    </aside>
+    </div>
   );
 }

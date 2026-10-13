@@ -5,10 +5,24 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Brand blue: the steel blue of the login buttons (#24478a) is the main colour of the app.
+        blue: {
+          50: '#eef3fb',
+          100: '#dde7f6',
+          200: '#bccfee',
+          300: '#8fafe0',
+          400: '#5b84c8',
+          500: '#2c5aa8',
+          600: '#24478a',
+          700: '#1b3a73',
+          800: '#15294a',
+          900: '#0e1c33',
+          950: '#0a1424'
+        },
         ecal: {
-          blue: '#2563eb',
+          blue: '#24478a',
           dark: '#0f172a',
-          accent: '#3b82f6'
+          accent: '#2c5aa8'
         }
       },
       fontFamily: {

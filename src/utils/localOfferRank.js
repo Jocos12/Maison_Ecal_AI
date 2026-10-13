@@ -22,7 +22,7 @@ export function rankOffersLocally(offers = []) {
           ((o.aiAnalysis?.score ?? 0) > 1 ? 1 : 100)
       ),
       reason: isJob(o)
-        ? 'Offre emploi/recrutement — priorité haute'
+        ? 'Offre emploi/recrutement, priorité haute'
         : 'Mission logistique vérifiée RDC',
       action: isJob(o) ? 'postuler' : 'surveiller',
       offer: o
@@ -31,6 +31,11 @@ export function rankOffersLocally(offers = []) {
   const jobs = offers.filter(isJob).length;
   return {
     summary: `${offers.length} offre(s) vérifiée(s) RDC (${jobs} emploi/recrutement). Classement par score de veille M-ECAL.`,
+    stats: {
+      total: offers.length,
+      jobs,
+      missions: Math.max(0, offers.length - jobs)
+    },
     picks,
     provider: 'local'
   };

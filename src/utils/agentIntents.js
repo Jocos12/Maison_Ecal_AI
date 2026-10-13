@@ -31,9 +31,18 @@ export function wantsJobSearch(message = '') {
   );
 }
 
+export function wantsVoiceAction(message = '') {
+  const m = String(message).toLowerCase();
+  return /combien|filtre|filtrer|navigue|affiche mes candidatures|candidatures en attente|prépare[- ]moi une candidature|prepare.*candidature|prepare-moi/.test(
+    m
+  );
+}
+
 export function wantsApply(message = '') {
   const m = message.toLowerCase();
-  return /postuler|postule pour|postulez|envoyer ma candidature|appliquer pour moi|postule automatiquement/.test(m);
+  return /postuler|postule pour|postulez|envoyer ma candidature|appliquer pour moi|postule automatiquement|prépare[rz]?[- ]moi une candidature|prepare.*(application|candidature)|créer une candidature|candidature pour (la |l['’])?meilleure|meilleure offre.*candidature/.test(
+    m
+  );
 }
 
 export function wantsApplicationAnalysis(message = '') {

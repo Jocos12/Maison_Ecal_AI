@@ -4,7 +4,7 @@ export default function ScoreRing({ value = 0, size = 44, stroke = 4 }) {
   const c = 2 * Math.PI * r;
   const offset = c - (pct / 100) * c;
   const color =
-    pct >= 75 ? '#10b981' : pct >= 50 ? '#2563eb' : pct >= 30 ? '#f59e0b' : '#94a3b8';
+    pct >= 75 ? '#10b981' : pct >= 50 ? '#24478a' : pct >= 30 ? '#f59e0b' : '#94a3b8';
 
   return (
     <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>

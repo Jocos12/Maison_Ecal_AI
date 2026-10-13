@@ -8,6 +8,7 @@ import {
   opportunityToJob
 } from '../../utils/sourcesFilterUtils.js';
 import { platformPillClass } from '../../utils/opportunityUi.js';
+import { AgentMarkdown } from '../../utils/agentMarkdown.jsx';
 
 const STARTER = {
   role: 'assistant',
@@ -26,19 +27,6 @@ const QUICK = [
   'Offres emploi logistique RDC',
   'Comment postuler efficacement ?'
 ];
-
-function renderLite(text = '') {
-  return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return (
-        <strong key={i} className="font-semibold">
-          {part.slice(2, -2)}
-        </strong>
-      );
-    }
-    return <span key={i}>{part}</span>;
-  });
-}
 
 export default function SourcesAiAgent({ opportunities = [], onFiltered }) {
   const [messages, setMessages] = useState([STARTER]);
@@ -200,7 +188,7 @@ export default function SourcesAiAgent({ opportunities = [], onFiltered }) {
           <Bot className="h-5 w-5" />
         </span>
         <div>
-          <h2 className="font-bold text-slate-900 dark:text-white">Agent IA — Sources & Candidatures</h2>
+          <h2 className="font-bold text-slate-900 dark:text-white">Agent IA, Sources & Candidatures</h2>
           <p className="text-xs text-slate-500">Filtres intelligents · CV · Lettres · M-ECAL</p>
         </div>
       </header>
@@ -235,7 +223,11 @@ export default function SourcesAiAgent({ opportunities = [], onFiltered }) {
                   : 'bg-white text-slate-800 shadow-sm dark:bg-slate-900 dark:text-slate-100'
               }`}
             >
-              <p className="whitespace-pre-wrap">{renderLite(msg.content)}</p>
+              {msg.role === 'assistant' ? (
+                <AgentMarkdown text={msg.content} />
+              ) : (
+                <p className="whitespace-pre-wrap">{msg.content}</p>
+              )}
               {msg.downloads?.map((d) => (
                 <a
                   key={d.url}
