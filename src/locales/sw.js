@@ -334,8 +334,28 @@ export const sw = {
     archive: 'Weka kumbukumbu',
     archivedOk: 'Fursa imewekwa kumbukumbu',
     aiScore: 'Ufanisi wa AI',
-    relevanceForMecal: '{pct}% ya ulinganifu na wasifu wa M-ECAL',
-    relevanceReason: 'Sababu ya alama',
+    relevanceForMecal: '{pct}% ya ubora wa faili',
+    relevanceReason: 'Sababu ya asilimia',
+    metierMatch: 'Ulinganifu wa kazi wa M-ECAL',
+    metierMatchUnknown: 'Haijaainishwa',
+    metierMatchMissing: 'Uchujaji wa kazi bado haujatumika kwenye ofa hii.',
+    metierCategoryUnknown: 'kategoria ya kuthibitisha',
+    metierMatchReason: 'Kwa nini cheo hiki cha kazi',
+    dossierQuality: 'Ubora wa faili',
+    dossierQualityPct: '{pct}% — jinsi ofa inavyoweza kutumika (jinsi ya kuomba)',
+    dossierQualityReason: 'Sababu ya asilimia',
+    dualScoreHintConfirmedLow:
+      'Ofa hii inalingana na kazi ya Maison ECAL ({category}), lakini hati haina mchakato wazi wa kuomba — angalia kiungo cha chanzo kabla ya kuandaa ombi.',
+    dualScoreHintConfirmedOk:
+      'Ofa hii inalingana na kazi ya Maison ECAL ({category}). Asilimia hupima tu ubora wa faili (hati, jinsi ya kuomba), si kazi yenyewe.',
+    dualScoreHintReview:
+      'Cheo cha kazi bado kinahitaji uamuzi. Asilimia hupima tu kama hati ni wazi kutosha kuomba, si kama mada iko katika kazi ya M-ECAL.',
+    dualScoreHintHors:
+      'Ofa hii iko nje ya kazi ya M-ECAL. Asilimia hupima tu uwazi wa hati kama zabuni, si kazi.',
+    dualScoreHintGeneric:
+      'Asilimia hupima matumizi ya faili (jinsi ya kuomba, hati, uwazi wa tangazo), si cheo cha kazi cha M-ECAL.',
+    lowDossierWarning:
+      'Faili dhaifu: fungua kiungo cha chanzo kupata jinsi ya kuomba. Bado unaweza kuunda ombi.',
     description: 'Maelezo',
     letterAi: 'Barua ya AI',
     proposalAi: 'Dokezo la mbinu',

@@ -171,7 +171,7 @@ function OfferRow({ opp, stacked = false }) {
       </div>
       </div>
       <div className={`flex flex-none items-center gap-3 ${stacked ? 'justify-between' : ''}`}>
-        <span title={t('opportunities.relevanceForMecal', { pct })}>
+        <span title={t('opportunities.dossierQualityPct', { pct })}>
           <ScoreRing value={pct} size={40} />
         </span>
         {opp.sourceUrl ? (

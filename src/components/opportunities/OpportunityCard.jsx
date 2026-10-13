@@ -7,6 +7,7 @@ import { SourceGlyph } from '../../utils/sourceIcons.jsx';
 import { formatDeadlineDate, isOpportunityNew } from '../../utils/opportunityDates.js';
 import { deadlineUrgency, deadlineTextClass, scorePercent } from '../../utils/opportunityUrgency.js';
 import { isGenericKeywordJustification } from '../../utils/scanRelevanceDisplay.js';
+import { canQuickApplyOffer } from '../../utils/offerScores.js';
 
 function needsLocationReview(opp) {
   return opp?.locationStatus === 'a_verifier' || opp?.aiAnalysis?.pays_confirme_rdc === 'a_verifier';
@@ -49,7 +50,7 @@ export default function OpportunityCard({
   const catBadge = CATEGORY_BADGE[opp.category] || CATEGORY_BADGE.assistance;
   const platformClass = platformPillClass(opp.platform);
   const place = opp.ville && opp.ville !== 'Non précisé' ? opp.ville : '';
-  const canQuickApply = pct >= 70 && onQuickApply && !hasApplication;
+  const canQuickApply = canQuickApplyOffer(opp, pct) && onQuickApply && !hasApplication;
   const daysLeft = urgency.days != null && urgency.days >= 0 && urgency.days <= 30 ? urgency.days : null;
 
   const quickApply = (e) => {
@@ -101,7 +102,7 @@ export default function OpportunityCard({
   );
 
   const ring = hasScore ? (
-    <span title={t('opportunities.relevanceForMecal', { pct })} className="flex-none">
+    <span title={t('opportunities.dossierQualityPct', { pct })} className="flex-none">
       <ScoreRing value={pct} size={compact ? 40 : 44} />
     </span>
   ) : null;

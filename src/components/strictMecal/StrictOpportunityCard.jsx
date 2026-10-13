@@ -6,6 +6,7 @@ import { CATEGORY_BADGE, platformPillClass } from '../../utils/opportunityUi.js'
 import { SourceGlyph } from '../../utils/sourceIcons.jsx';
 import { formatDeadlineDate, isOpportunityNew } from '../../utils/opportunityDates.js';
 import { deadlineUrgency, scorePercent } from '../../utils/opportunityUrgency.js';
+import { metierCategoryLabel, metierStatusLabel } from '../../utils/offerScores.js';
 
 const TONES = {
   confirmed: {
@@ -75,8 +76,11 @@ export default function StrictOpportunityCard({ opp, onOpen, index = 0, tone = '
               </span>
             ) : null}
             {hasScore ? (
-              <span title={t('opportunities.relevanceForMecal', { pct })}>
+              <span className="flex flex-col items-end" title={t('opportunities.dossierQualityPct', { pct })}>
                 <ScoreRing value={pct} size={40} />
+                <span className="mt-0.5 max-w-[4.5rem] text-right text-[8px] font-bold uppercase leading-tight tracking-wide text-slate-400">
+                  {t('opportunities.dossierQuality')}
+                </span>
               </span>
             ) : null}
           </div>
@@ -126,7 +130,14 @@ export default function StrictOpportunityCard({ opp, onOpen, index = 0, tone = '
             <VerdictIcon className="h-4 w-4" aria-hidden="true" />
           </span>
           <div className="min-w-0">
-            <p className={`text-[10px] font-bold uppercase tracking-[0.14em] ${look.label}`}>{t(labelKey)}</p>
+            <p className={`text-[10px] font-bold uppercase tracking-[0.14em] ${look.label}`}>
+              {t('opportunities.metierMatch')} · {metierStatusLabel(opp, t) || t(labelKey)}
+            </p>
+            {metierCategoryLabel(opp, t) ? (
+              <p className="mt-0.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                {metierCategoryLabel(opp, t)}
+              </p>
+            ) : null}
             <p className="mt-1 text-[13px] leading-relaxed text-slate-700 dark:text-slate-200">{justification}</p>
           </div>
         </div>

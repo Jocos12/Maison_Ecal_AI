@@ -342,8 +342,28 @@ export const fr = {
     archive: 'Archiver',
     archivedOk: 'Offre archivée',
     aiScore: 'Pertinence IA',
-    relevanceForMecal: '{pct}% de correspondance avec le profil M-ECAL',
-    relevanceReason: 'Pourquoi ce score',
+    relevanceForMecal: '{pct}% d’exploitabilité du dossier',
+    relevanceReason: 'Pourquoi ce pourcentage',
+    metierMatch: 'Correspondance métier M-ECAL',
+    metierMatchUnknown: 'Non classée',
+    metierMatchMissing: 'Le tri métier n’a pas encore été appliqué à cette offre.',
+    metierCategoryUnknown: 'catégorie à préciser',
+    metierMatchReason: 'Pourquoi ce classement métier',
+    dossierQuality: 'Qualité du dossier',
+    dossierQualityPct: '{pct}% — exploitabilité de l’offre (comment postuler)',
+    dossierQualityReason: 'Pourquoi ce pourcentage',
+    dualScoreHintConfirmedLow:
+      'Cette offre correspond au métier de Maison ECAL ({category}), mais le document manque d’informations claires sur comment postuler — vérifiez le lien source avant de préparer une candidature.',
+    dualScoreHintConfirmedOk:
+      'Cette offre correspond au métier de Maison ECAL ({category}). Le pourcentage mesure uniquement la qualité / exploitabilité du dossier (pièces, mode de candidature), pas le métier.',
+    dualScoreHintReview:
+      'Le classement métier reste à trancher. Le pourcentage mesure seulement si le document est assez clair pour candidater, pas si le sujet est dans le métier M-ECAL.',
+    dualScoreHintHors:
+      'Cette offre est hors métier M-ECAL. Le pourcentage mesure seulement la clarté du document comme appel d’offres, pas le métier.',
+    dualScoreHintGeneric:
+      'Le pourcentage mesure l’exploitabilité du dossier (comment postuler, pièces, clarté de l’avis), pas le classement métier M-ECAL.',
+    lowDossierWarning:
+      'Dossier peu exploitable : ouvrez le lien source pour trouver comment postuler. Vous pouvez tout de même créer une candidature.',
     description: 'Description',
     letterAi: 'Lettre IA',
     proposalAi: 'Note d’approche',

@@ -340,8 +340,28 @@ export const en = {
     archive: 'Archive',
     archivedOk: 'Offer archived',
     aiScore: 'AI relevance',
-    relevanceForMecal: '{pct}% match with the M-ECAL profile',
-    relevanceReason: 'Why this score',
+    relevanceForMecal: '{pct}% dossier usability',
+    relevanceReason: 'Why this percentage',
+    metierMatch: 'M-ECAL métier match',
+    metierMatchUnknown: 'Not classified',
+    metierMatchMissing: 'Métier triage has not been applied to this offer yet.',
+    metierCategoryUnknown: 'category to confirm',
+    metierMatchReason: 'Why this métier ranking',
+    dossierQuality: 'Dossier quality',
+    dossierQualityPct: '{pct}% — how usable the notice is (how to apply)',
+    dossierQualityReason: 'Why this percentage',
+    dualScoreHintConfirmedLow:
+      'This offer matches Maison ECAL’s métier ({category}), but the document lacks a clear application process — check the source link before preparing a bid.',
+    dualScoreHintConfirmedOk:
+      'This offer matches Maison ECAL’s métier ({category}). The percentage only measures dossier quality / usability (documents, how to apply), not the métier.',
+    dualScoreHintReview:
+      'The métier ranking still needs a decision. The percentage only measures whether the document is clear enough to apply, not whether the subject is in M-ECAL’s métier.',
+    dualScoreHintHors:
+      'This offer is outside M-ECAL’s métier. The percentage only measures how clear the document is as a tender, not the métier.',
+    dualScoreHintGeneric:
+      'The percentage measures dossier usability (how to apply, documents, clarity of the notice), not the M-ECAL métier ranking.',
+    lowDossierWarning:
+      'Thin dossier: open the source link to find how to apply. You can still create an application.',
     description: 'Description',
     letterAi: 'AI letter',
     proposalAi: 'Approach note',

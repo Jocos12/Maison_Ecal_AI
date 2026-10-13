@@ -21,15 +21,14 @@ import {
   Sparkles,
   X
 } from 'lucide-react';
-import ScoreRing from '../ui/ScoreRing.jsx';
 import { SourceGlyph } from '../../utils/sourceIcons.jsx';
 import { platformPillClass } from '../../utils/opportunityUi.js';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { formatDeadlineLong, formatPostedLong } from '../../utils/opportunityDates.js';
 import { deadlineUrgency, scorePercent, urgencyBadgeClass } from '../../utils/opportunityUrgency.js';
-import { isGenericKeywordJustification } from '../../utils/scanRelevanceDisplay.js';
 import { AgentMarkdown } from '../../utils/agentMarkdown.jsx';
+import DualScorePanel from './DualScorePanel.jsx';
 import ApplyEmailPreviewModal from './ApplyEmailPreviewModal.jsx';
 import ApplyGuideSection from './ApplyGuideSection.jsx';
 import OpportunityAskChat from './OpportunityAskChat.jsx';
@@ -62,8 +61,6 @@ export default function OpportunityModal({ opp, onClose, onCreated }) {
   const urgency = deadlineUrgency(opp.deadline);
   const pct = scorePercent(opp);
   const hasScore = opp.aiAnalysis?.score != null || opp.aiRelevanceScore != null;
-  const justification = opp.aiAnalysis?.justification;
-  const showJustification = justification && !isGenericKeywordJustification(justification);
   const postedLabel = formatPostedLong(opp, locale, t);
   const deadlineLabel = formatDeadlineLong(opp, locale, t);
 
@@ -140,8 +137,6 @@ export default function OpportunityModal({ opp, onClose, onCreated }) {
         : urgency.level === 'soon'
           ? t('opportunities.closingSoon', { count: urgency.days })
           : t('opportunities.daysLeft', { count: urgency.days });
-  const columns = hasScore ? 'md:grid-cols-4' : 'md:grid-cols-3';
-
   const toolButton =
     'inline-flex flex-none items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-bold ring-1 transition focus:outline-none focus-visible:ring-2 disabled:opacity-60';
 
@@ -202,7 +197,7 @@ export default function OpportunityModal({ opp, onClose, onCreated }) {
         </header>
 
         <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-6">
-          <div className={`grid grid-cols-2 gap-3 ${columns}`}>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
             <div className="rounded-2xl border border-teal-200 bg-teal-50 p-4 dark:border-teal-900 dark:bg-teal-950/40">
               <div className="flex items-center gap-2">
                 <span className="grid h-7 w-7 place-items-center rounded-lg bg-teal-600 text-white">
@@ -244,15 +239,9 @@ export default function OpportunityModal({ opp, onClose, onCreated }) {
               ) : null}
             </div>
 
-            {hasScore ? (
-              <div className="flex items-center gap-2.5 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60">
-                <ScoreRing value={pct} size={46} stroke={4} />
-                <p className="min-w-0 text-[11px] font-semibold leading-snug text-slate-600 dark:text-slate-300">
-                  {t('opportunities.relevanceForMecal', { pct })}
-                </p>
-              </div>
-            ) : null}
           </div>
+
+          <DualScorePanel opp={opp} pct={pct} hasScore={hasScore} />
 
           {opp.isRecommended || showVerify ? (
             <div className="flex flex-wrap items-center gap-2">
@@ -268,20 +257,6 @@ export default function OpportunityModal({ opp, onClose, onCreated }) {
                   {t('opportunities.locationToVerifyHint')}
                 </span>
               ) : null}
-            </div>
-          ) : null}
-
-          {showJustification ? (
-            <div className="flex gap-3.5 rounded-2xl border border-[#c9d8f1] bg-[#eaf0fb] p-4 dark:border-slate-600 dark:bg-slate-800/60">
-              <span className="grid h-9 w-9 flex-none place-items-center rounded-xl bg-[#24478a] text-white">
-                <Lightbulb className="h-[18px] w-[18px]" aria-hidden="true" />
-              </span>
-              <div className="min-w-0">
-                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#24478a] dark:text-blue-200">
-                  {t('opportunities.relevanceReason')}
-                </p>
-                <p className="mt-1 text-sm leading-relaxed text-slate-700 dark:text-slate-200">{justification}</p>
-              </div>
             </div>
           ) : null}
 
