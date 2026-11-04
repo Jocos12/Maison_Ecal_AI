@@ -60,3 +60,7 @@ export function getNotifySnapshot() {
 export function setNotifySnapshot(snapshot) {
   localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snapshot));
 }
+
+export function patchNotifySnapshot(partial) {
+  localStorage.setItem(SNAPSHOT_KEY, JSON.stringify({ ...getNotifySnapshot(), ...partial }));
+}

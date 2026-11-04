@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUpDown, Briefcase, CalendarClock, ChevronDown, Gavel, Globe2, HeartHandshake, Loader2, MapPin, RefreshCw, Search, Sparkles, Target } from 'lucide-react';
+import { ArrowUpDown, Briefcase, CalendarClock, ChevronDown, Gavel, Globe2, HeartHandshake, Loader2, MapPin, Radar, RefreshCw, Search, Sparkles, Target } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../api/client.js';
 import Dropdown from '../components/ui/Dropdown.jsx';
@@ -21,9 +21,11 @@ function relativeTime(iso, lang) {
   return rtf.format(Math.round(diffMin / 1440), 'day');
 }
 
-export default function Nrc() {
+export default function Nrc({ wide = false }) {
   const { t, lang, dateLocale } = useUiLocale();
+  const apiBase = wide ? '/api/veille' : '/api/nrc';
   const [kind, setKind] = useState('all');
+  const [org, setOrg] = useState('all');
   const [drcOnly, setDrcOnly] = useState(false);
   const [country, setCountry] = useState('');
   const [status, setStatus] = useState('open');
@@ -47,24 +49,24 @@ export default function Nrc() {
 
   useEffect(() => {
     setPage(1);
-  }, [kind, drcOnly, country, status, fit, sort, search]);
+  }, [kind, drcOnly, country, status, fit, sort, search, org]);
 
   const loadMeta = useCallback(async () => {
     try {
-      const { data } = await api.get('/api/nrc/meta');
+      const { data } = await api.get(`${apiBase}/meta`);
       setMeta(data);
       return data;
     } catch {
       return null;
     }
-  }, []);
+  }, [apiBase]);
 
   const loadList = useCallback(
     async (pageToLoad = 1) => {
       setLoading(true);
       try {
-        const { data } = await api.get('/api/nrc', {
-          params: { kind, drc: drcOnly ? 'true' : '', fit: fit ? 'true' : '', country, status, sort, q: search, page: pageToLoad, limit: PAGE_SIZE }
+        const { data } = await api.get(apiBase, {
+          params: { kind, drc: drcOnly ? 'true' : '', fit: fit ? 'true' : '', country, status, sort, q: search, org: wide ? org : 'nrc', page: pageToLoad, limit: PAGE_SIZE }
         });
         setItems((prev) => (pageToLoad === 1 ? data.items : [...prev, ...data.items]));
         setTotal(data.total);
@@ -75,7 +77,7 @@ export default function Nrc() {
         setLoading(false);
       }
     },
-    [kind, drcOnly, country, status, fit, sort, search, t]
+    [kind, drcOnly, country, status, fit, sort, search, org, wide, apiBase, t]
   );
 
   useEffect(() => {
@@ -94,18 +96,18 @@ export default function Nrc() {
       const data = await loadMeta();
       if (data && !data.sync?.running) {
         window.clearInterval(pollRef.current);
-        toast.success(t('nrcPage.toastSyncDone'));
+        toast.success(t(wide ? 'veillePage.toastSyncDone' : 'nrcPage.toastSyncDone'));
         loadList(1);
       }
     }, 6000);
     return () => window.clearInterval(pollRef.current);
-  }, [syncing, loadMeta, loadList, t]);
+  }, [syncing, loadMeta, loadList, t, wide]);
 
   const startSync = async () => {
     try {
-      const { data } = await api.post('/api/nrc/sync');
+      const { data } = await api.post(`${apiBase}/sync`);
       setMeta((m) => ({ ...(m || {}), sync: { ...(m?.sync || {}), ...(data.sync || {}), running: true } }));
-      toast.success(data.status === 'already_running' ? t('nrcPage.toastSyncRunning') : t('nrcPage.toastSyncStarted'));
+      toast.success(data.status === 'already_running' ? t('nrcPage.toastSyncRunning') : t(wide ? 'veillePage.toastSyncStarted' : 'nrcPage.toastSyncStarted'));
     } catch (e) {
       toast.error(e.response?.data?.message || t('nrcPage.toastSyncFail'));
     }
@@ -115,9 +117,10 @@ export default function Nrc() {
     setItems((list) => list.map((n) => (n._id === full._id ? { ...n, brief: { generatedAt: full.brief?.generatedAt }, draft: { generatedAt: full.draft?.generatedAt } } : n)));
   };
 
-  const filtersActive = Boolean(kind !== 'all' || drcOnly || country || status !== 'open' || fit || search);
+  const filtersActive = Boolean(kind !== 'all' || drcOnly || country || status !== 'open' || fit || search || (wide && org !== 'all'));
   const resetFilters = () => {
     setKind('all');
+    setOrg('all');
     setDrcOnly(false);
     setCountry('');
     setStatus('open');
@@ -163,11 +166,11 @@ export default function Nrc() {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex min-w-0 items-center gap-4">
               <span className="grid h-14 w-14 flex-none place-items-center rounded-2xl bg-white text-[#24478a] shadow-sm">
-                <HeartHandshake className="h-7 w-7" aria-hidden="true" />
+                {wide ? <Radar className="h-7 w-7" aria-hidden="true" /> : <HeartHandshake className="h-7 w-7" aria-hidden="true" />}
               </span>
               <div className="min-w-0">
-                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-blue-200">{t('nrcPage.pageTag')}</p>
-                <h1 className="break-words text-3xl font-extrabold leading-tight tracking-tight">{t('nrcPage.title')}</h1>
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-blue-200">{wide ? t('veillePage.pageTag') : t('nrcPage.pageTag')}</p>
+                <h1 className="break-words text-3xl font-extrabold leading-tight tracking-tight">{wide ? t('veillePage.title') : t('nrcPage.title')}</h1>
               </div>
             </div>
             <div className="flex flex-col items-start gap-1.5 sm:items-end">
@@ -178,14 +181,14 @@ export default function Nrc() {
                 className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-[#24478a] shadow-sm transition hover:bg-blue-50 disabled:opacity-70 focus:outline-none focus-visible:ring-4 focus-visible:ring-white/40"
               >
                 <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} aria-hidden="true" />
-                {syncing ? t('nrcPage.refreshing') : t('nrcPage.refresh')}
+                {syncing ? t('nrcPage.refreshing') : wide ? t('veillePage.refresh') : t('nrcPage.refresh')}
               </button>
               <p className="text-xs font-medium text-blue-100">{sync.lastRunAt ? t('nrcPage.lastUpdate', { when: relativeTime(sync.lastRunAt, lang) }) : t('nrcPage.neverUpdated')}</p>
             </div>
           </div>
 
-          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-blue-100">{t('nrcPage.subtitle')}</p>
-          {meta?.hidden > 0 ? <p className="mt-2 max-w-2xl text-xs font-medium text-blue-200">{t('nrcPage.hiddenNote', { count: meta.hidden })}</p> : null}
+          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-blue-100">{wide ? t('veillePage.subtitle') : t('nrcPage.subtitle')}</p>
+          {!wide && meta?.hidden > 0 ? <p className="mt-2 max-w-2xl text-xs font-medium text-blue-200">{t('nrcPage.hiddenNote', { count: meta.hidden })}</p> : null}
           {syncing || sync.detailBacklog > 0 ? (
             <p className="mt-3 inline-flex max-w-2xl items-start gap-2 rounded-xl bg-white/10 px-3.5 py-2 text-xs font-medium leading-relaxed text-blue-50">
               <Sparkles className="mt-0.5 h-3.5 w-3.5 flex-none" aria-hidden="true" />
@@ -271,6 +274,30 @@ export default function Nrc() {
             </span>
           </button>
         </div>
+
+        {wide ? (
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t('veillePage.orgLabel')}>
+            <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">{t('veillePage.orgLabel')}</span>
+            {[{ id: 'all', label: t('veillePage.orgAll'), count: (meta?.orgs || []).reduce((sum, row) => sum + (row.count || 0), 0) }, ...(meta?.orgs || [
+              { id: 'irc', label: 'IRC', count: 0 },
+              { id: 'drcngo', label: 'DRC', count: 0 },
+              { id: 'icrc', label: 'ICRC', count: 0 }
+            ])].map((row) => (
+              <button
+                key={row.id}
+                type="button"
+                aria-pressed={org === row.id}
+                onClick={() => setOrg(row.id)}
+                className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-bold transition ${FOCUS} ${
+                  org === row.id ? 'bg-[#24478a] text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+                }`}
+              >
+                {row.label}
+                <span className={`rounded-full px-1.5 tabular-nums ${org === row.id ? 'bg-white/20' : 'bg-slate-200 dark:bg-slate-700'}`}>{row.count}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_14rem_13rem]">
           <label className="relative block min-w-0">

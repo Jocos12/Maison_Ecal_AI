@@ -11,6 +11,7 @@ import VerifyOTPPage from './pages/auth/VerifyOTPPage.jsx';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage.jsx';
 import PendingApprovalPage from './pages/auth/PendingApprovalPage.jsx';
 import AdminUsers from './pages/AdminUsers.jsx';
+import AuditJournal from './pages/AuditJournal.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Opportunities from './pages/Opportunities.jsx';
 import StrictMecal from './pages/StrictMecal.jsx';
@@ -25,6 +26,8 @@ import Alerts from './pages/Alerts.jsx';
 import Archive from './pages/Archive.jsx';
 import Messaging from './pages/Messaging.jsx';
 import Marketing from './pages/Marketing.jsx';
+import Contracts from './pages/Contracts.jsx';
+import Lifecycle from './pages/Lifecycle.jsx';
 import JobAssistant from './pages/JobAssistant.jsx';
 import I18nUserSync from './components/I18nUserSync.jsx';
 
@@ -59,6 +62,7 @@ export default function App() {
               <Route path="/applications" element={<Applications />} />
               <Route path="/sources" element={<Sources />} />
               <Route path="/nrc" element={<Nrc />} />
+              <Route path="/veille" element={<Nrc wide />} />
               <Route path="/categories" element={<Categories />} />
               <Route path="/agent" element={<Agent />} />
               <Route path="/assistant-emploi" element={<JobAssistant />} />
@@ -66,9 +70,12 @@ export default function App() {
               <Route path="/alerts" element={<Alerts />} />
               <Route path="/messaging" element={<Messaging />} />
               <Route path="/marketing" element={<Marketing />} />
+              <Route path="/contrats" element={<Contracts />} />
+              <Route path="/cycle" element={<Lifecycle />} />
               <Route path="/archive" element={<Archive />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/admin/users" element={<AdminUsers />} />
+              <Route path="/admin/journal" element={<AuditJournal />} />
             </Route>
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>

@@ -53,7 +53,12 @@ export const PAGE_ROUTES = Object.freeze({
   archive: '/archive',
   marketing: '/marketing',
   'assistant-emploi': '/assistant-emploi',
-  assistant: '/assistant-emploi'
+  assistant: '/assistant-emploi',
+  contrats: '/contrats',
+  contracts: '/contrats',
+  cycle: '/cycle',
+  parcours: '/cycle',
+  lifecycle: '/cycle'
 });
 
 export function resolvePagePath(page = '') {

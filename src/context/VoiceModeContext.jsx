@@ -5,6 +5,7 @@ import React, {
   useMemo,
   useState
 } from 'react';
+import { announceAgentConfirmation } from '../utils/businessNotifications.js';
 
 const LS_KEY = 'mecal-voice-mode-enabled';
 
@@ -30,7 +31,7 @@ function readEnabled() {
 
 export function VoiceModeProvider({ children }) {
   const [enabled, setEnabledState] = useState(readEnabled);
-  const [pendingApply, setPendingApply] = useState(null);
+  const [pendingApply, setPendingApplyState] = useState(null);
   const [lastTranscript, setLastTranscript] = useState('');
   /** idle | listening | processing | speaking */
   const [status, setStatus] = useState('idle');
@@ -45,7 +46,7 @@ export function VoiceModeProvider({ children }) {
     }
     if (!next) {
       setStatus('idle');
-      setPendingApply(null);
+      setPendingApplyState(null);
       setLastTranscript('');
       try {
         window.dispatchEvent(new CustomEvent('mecal:voice-listen-stop'));
@@ -55,7 +56,14 @@ export function VoiceModeProvider({ children }) {
     }
   }, []);
 
-  const clearPendingApply = useCallback(() => setPendingApply(null), []);
+  const setPendingApply = useCallback((payload) => {
+    setPendingApplyState(payload);
+    if (payload?.offreId && !payload.silent) announceAgentConfirmation(payload);
+  }, []);
+
+  const clearPendingApply = useCallback(() => {
+    setPendingApplyState(null);
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -73,6 +81,7 @@ export function VoiceModeProvider({ children }) {
       enabled,
       setEnabled,
       pendingApply,
+      setPendingApply,
       clearPendingApply,
       lastTranscript,
       status

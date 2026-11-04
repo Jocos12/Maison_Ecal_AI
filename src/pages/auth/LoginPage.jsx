@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Loader2, Plus } from 'lucide-react';
+import { Loader2, Lock, UserPlus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../../api/client.js';
 import { useApp } from '../../context/AppContext.jsx';
@@ -53,13 +53,14 @@ export default function LoginPage() {
 
   return (
     <AuthShell
-      title={t('auth.loginWelcome')}
+      icon={Lock}
+      title={t('auth.loginTitle')}
       subtitle={t('auth.loginSubtitle')}
       footer={
         <div className="mlogin-foot">
           <span>{t('auth.noAccount')}</span>
           <RoundLink to="/signup" label={t('auth.signUpLink')}>
-            <Plus size={22} strokeWidth={2.4} />
+            <UserPlus size={20} strokeWidth={2.4} />
           </RoundLink>
         </div>
       }
@@ -74,6 +75,7 @@ export default function LoginPage() {
         <NeoField
           id="mlogin-email"
           name="mecal-identifier"
+          type="email"
           label={t('auth.email')}
           inputMode="email"
           autoCapitalize="none"
@@ -93,14 +95,14 @@ export default function LoginPage() {
         />
 
         <div className="mlogin-row">
-          <Link to="/forgot-password" className="mlogin-link mlogin-link--danger">
+          <Link to="/forgot-password" className="mlogin-link">
             {t('auth.forgotLink')}
           </Link>
         </div>
 
-        <button type="submit" className="mlogin-submit" disabled={loading}>
+        <button type="submit" className="mlogin-submit" disabled={loading} aria-busy={loading}>
           {loading ? <Loader2 size={18} className="animate-spin" /> : null}
-          {t('auth.login')}
+          {loading ? t('auth.loggingIn') : t('auth.login')}
         </button>
       </form>
     </AuthShell>

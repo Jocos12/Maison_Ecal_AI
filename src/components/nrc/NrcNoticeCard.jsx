@@ -60,6 +60,9 @@ export default function NrcNoticeCard({ n, active, onOpen, t, lang, dateLocale }
                 <KindIcon className="h-3 w-3" aria-hidden="true" />
                 {isJob ? t('nrcPage.kindJob') : t('nrcPage.kindTender')}
               </span>
+              <span className="rounded-lg bg-[#101B2C] px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-white">
+                {{ nrc: 'NRC', irc: 'IRC', drcngo: 'DRC', icrc: 'ICRC' }[(n.organization || 'nrc').toLowerCase()] || (n.organization || 'NRC').toUpperCase()}
+              </span>
               {n.noticeType && n.noticeType !== 'Tender' ? (
                 <span className="rounded-lg bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{n.noticeType}</span>
               ) : null}

@@ -1,4 +1,4 @@
-import { AlertTriangle, Bell, Bot, Briefcase, Radar, Sparkles, UserSearch } from 'lucide-react';
+import { AlertTriangle, Bell, Bot, Briefcase, CalendarClock, BadgeCheck, Hourglass, Radar, RotateCw, Sparkles, UserSearch } from 'lucide-react';
 
 // One flat icon tile per kind of notification (tones are the app's own family of colours).
 export const NOTIFICATION_KINDS = {
@@ -31,6 +31,26 @@ export const NOTIFICATION_KINDS = {
     icon: Sparkles,
     tile: 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
     label: 'text-amber-700 dark:text-amber-300'
+  },
+  'contract-due': {
+    icon: CalendarClock,
+    tile: 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
+    label: 'text-rose-700 dark:text-rose-300'
+  },
+  'application-status': {
+    icon: BadgeCheck,
+    tile: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
+    label: 'text-emerald-700 dark:text-emerald-300'
+  },
+  'agent-confirm': {
+    icon: Hourglass,
+    tile: 'bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300',
+    label: 'text-violet-700 dark:text-violet-300'
+  },
+  'follow-up': {
+    icon: RotateCw,
+    tile: 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300',
+    label: 'text-amber-800 dark:text-amber-300'
   }
 };
 

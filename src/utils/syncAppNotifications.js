@@ -1,5 +1,5 @@
 import { api } from '../api/client.js';
-import { getNotifySnapshot, setNotifySnapshot, upsertNotification } from './notificationStore.js';
+import { getNotifySnapshot, patchNotifySnapshot, upsertNotification } from './notificationStore.js';
 import { isJobWatchEnabled } from './jobWatchStore.js';
 
 function isLogisticsJobOpportunity(opp) {
@@ -124,7 +124,7 @@ export async function syncAppNotifications() {
       });
     }
 
-    setNotifySnapshot({
+    patchNotifySnapshot({
       newThisWeek: stats.newThisWeek ?? 0,
       closingSoon: stats.closingSoon ?? 0,
       lastScrapeAt: stats.lastScrapeAt || null,

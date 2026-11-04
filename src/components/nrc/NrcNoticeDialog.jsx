@@ -9,6 +9,7 @@ import {
   ClipboardCopy,
   ExternalLink,
   FileText,
+  FolderPlus,
   Gavel,
   Loader2,
   Mail,
@@ -194,6 +195,21 @@ export default function NrcNoticeDialog({ noticeId, onClose, onChanged, t, lang,
   }, []);
 
   const isJob = notice?.kind === 'job';
+  const orgCode = String(notice?.organization || 'nrc').toLowerCase();
+  const orgLabel = { nrc: 'NRC', irc: 'IRC', drcngo: 'DRC', icrc: 'ICRC' }[orgCode] || orgCode.toUpperCase();
+  const [appBusy, setAppBusy] = useState(false);
+  const createApplicationDraft = async () => {
+    if (!notice?._id) return;
+    setAppBusy(true);
+    try {
+      const { data } = await api.post('/api/applications', { notice: notice._id });
+      toast.success(data.alreadyExisted ? t('nrcPage.draftExists') : t('nrcPage.draftCreated'));
+    } catch (e) {
+      toast.error(e.response?.data?.message || t('nrcPage.draftFail'));
+    } finally {
+      setAppBusy(false);
+    }
+  };
 
   const generateBrief = requestBrief;
 
@@ -403,6 +419,7 @@ export default function NrcNoticeDialog({ noticeId, onClose, onChanged, t, lang,
 
               </div>
               <div className="p-5 pt-0 lg:border-t lg:border-slate-200 lg:pt-4 dark:lg:border-slate-700">
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">{t('nrcPage.howToApply')}</p>
               <a
                 href={notice.applyUrl || notice.url}
                 target="_blank"
@@ -410,8 +427,18 @@ export default function NrcNoticeDialog({ noticeId, onClose, onChanged, t, lang,
                 className={`flex w-full items-center justify-center gap-2 rounded-xl bg-[#24478a] px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#1c3a72] ${FOCUS}`}
               >
                 <ExternalLink className="h-4 w-4" aria-hidden="true" />
-                {isJob ? t('nrcPage.applyOnNrc') : t('nrcPage.openOnNrc')}
+                {orgCode === 'nrc' ? (isJob ? t('nrcPage.applyOnNrc') : t('nrcPage.openOnNrc')) : t('nrcPage.applyOnPortal', { org: orgLabel })}
               </a>
+              <p className="mt-2 text-center text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">{t('nrcPage.applyHint')}</p>
+              <button
+                type="button"
+                onClick={createApplicationDraft}
+                disabled={appBusy}
+                className={`mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-[#24478a] bg-white px-4 py-3 text-sm font-bold text-[#24478a] transition hover:bg-[#e3ebf9] disabled:opacity-70 dark:bg-slate-900 dark:text-blue-200 ${FOCUS}`}
+              >
+                {appBusy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <FolderPlus className="h-4 w-4" aria-hidden="true" />}
+                {t('nrcPage.createDraft')}
+              </button>
               </div>
             </aside>
 

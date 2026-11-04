@@ -13,8 +13,11 @@ import {
   LayoutDashboard,
   Link2,
   Mail,
+  Radar,
   Settings,
-  ShieldCheck
+  ScrollText,
+  ShieldCheck,
+  Waypoints
 } from 'lucide-react';
 
 /**
@@ -77,6 +80,14 @@ export const NAV_GROUPS = [
         keywords: ['nrc', 'norwegian refugee council', 'ong', 'ngo', 'humanitaire', 'humanitarian', 'appels d\'offres', 'tenders', 'emplois', 'jobs', 'zabuni', 'ajira']
       },
       {
+        to: '/veille',
+        labelKey: 'sidebar.veille',
+        icon: Radar,
+        color: 'text-sky-300',
+        badge: 'new',
+        keywords: ['veille', 'irc', 'humanitarian', 'humanitaire', 'ong', 'emplois', 'logistique']
+      },
+      {
         to: '/categories',
         labelKey: 'sidebar.categories',
         icon: FolderTree,
@@ -112,6 +123,25 @@ export const NAV_GROUPS = [
         linkedInDot: true,
         navActive: (_, loc) => loc.pathname === '/assistant-emploi' && loc.search.includes('section=linkedin'),
         keywords: ['linkedin', 'réseau', 'network']
+      }
+    ]
+  },
+  {
+    titleKey: 'sidebar.groups.gestion',
+    items: [
+      {
+        to: '/contrats',
+        labelKey: 'sidebar.contracts',
+        icon: ScrollText,
+        color: 'text-amber-500',
+        keywords: ['contrat', 'contrats', 'travaux', 'contracts', 'work', 'mkataba', 'kazi']
+      },
+      {
+        to: '/cycle',
+        labelKey: 'sidebar.lifecycle',
+        icon: Waypoints,
+        color: 'text-teal-500',
+        keywords: ['cycle', 'parcours', 'lifecycle', 'timeline', 'mzunguko']
       }
     ]
   },
@@ -177,6 +207,13 @@ export const NAV_GROUPS = [
     titleKey: 'sidebar.groups.admin',
     adminOnly: true,
     items: [
+      {
+        to: '/admin/journal',
+        labelKey: 'sidebar.journal',
+        icon: ClipboardList,
+        color: 'text-slate-500',
+        keywords: ['audit', 'journal', 'activité', 'activity', 'historique', 'kumbukumbu']
+      },
       {
         to: '/admin/users',
         labelKey: 'sidebar.users',

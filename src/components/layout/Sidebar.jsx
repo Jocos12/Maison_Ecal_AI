@@ -83,7 +83,8 @@ export default function Sidebar({ compact = false, onNavigate }) {
               ...group,
               items: group.items.map((item) => ({
                 ...item,
-                badge: pendingApprovals > 0 ? String(pendingApprovals) : null
+                badge:
+                  item.to === '/admin/users' && pendingApprovals > 0 ? String(pendingApprovals) : item.badge ?? null
               }))
             }
           : group
