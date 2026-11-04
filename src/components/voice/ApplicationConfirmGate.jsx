@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { api } from '../../api/client.js';
 import { useI18n } from '../../context/I18nContext.jsx';
 import { useVoiceMode } from '../../context/VoiceModeContext.jsx';
+import { dismissAgentConfirmation } from '../../utils/businessNotifications.js';
 import VoiceApplyConfirmModal from './VoiceApplyConfirmModal.jsx';
 
 /**
@@ -28,9 +29,14 @@ export default function ApplicationConfirmGate() {
         status: 'draft',
         notes:
           pendingApply.notes ||
-          t('voice.applicationNotes')
+          t('voice.applicationNotes'),
+        auditOrigin: {
+          actor: 'agent',
+          channel: pendingApply.source === 'chat' ? 'text' : 'voice'
+        }
       });
       toast.success(t('voice.applicationCreated'));
+      dismissAgentConfirmation(pendingApply.offreId);
       clearPendingApply();
       navigate('/applications');
       window.dispatchEvent(new CustomEvent('mecal:applications-updated'));

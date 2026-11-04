@@ -109,23 +109,11 @@ export function buildWeeklyChart(applications = [], locale = 'fr-FR') {
   const now = new Date();
   now.setHours(23, 59, 59, 999);
 
-  let spanStart = new Date(now.getTime() - 5 * WEEK_MS);
-  spanStart.setHours(0, 0, 0, 0);
-
-  if (dated.length) {
-    const oldest = new Date(Math.min(...dated.map((x) => x.d.getTime())));
-    oldest.setHours(0, 0, 0, 0);
-    if (oldest < spanStart) spanStart = oldest;
-  }
-
-  const spanMs = Math.max(WEEK_MS, now.getTime() - spanStart.getTime());
-  const bucketMs = Math.max(WEEK_MS, Math.ceil(spanMs / 6));
-
   const weeks = [];
   for (let i = 5; i >= 0; i -= 1) {
-    const end = new Date(now.getTime() - i * bucketMs);
+    const end = new Date(now.getTime() - i * WEEK_MS);
     end.setHours(23, 59, 59, 999);
-    const start = new Date(end.getTime() - bucketMs + 1);
+    const start = new Date(end.getTime() - WEEK_MS + 1);
     start.setHours(0, 0, 0, 0);
     weeks.push({ start, end, index: 6 - i });
   }

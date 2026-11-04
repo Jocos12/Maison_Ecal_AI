@@ -138,7 +138,8 @@ export default function VoiceModeListener() {
             title: offer.title,
             organization: offer.organization || offer.platform,
             ville: offer.ville || offer.city || 'RDC',
-            awaitConfirmation: true
+            awaitConfirmation: true,
+            source: 'voice'
           });
           navigate(`/opportunities?id=${offer._id}`);
         }

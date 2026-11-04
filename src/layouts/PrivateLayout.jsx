@@ -7,6 +7,7 @@ import { useSidebarDock } from '../hooks/useSidebarDock.js';
 import { useApp } from '../context/AppContext.jsx';
 import { Loader2 } from 'lucide-react';
 import { syncAppNotifications } from '../utils/syncAppNotifications.js';
+import { syncBusinessNotifications } from '../utils/businessNotifications.js';
 import { pollMatchAlerts } from '../utils/pollMatchAlerts.js';
 import { getAlertSettings, startAlertScheduler } from '../services/alertService.js';
 import VoiceModeListener from '../components/voice/VoiceModeListener.jsx';
@@ -25,9 +26,11 @@ export function PrivateLayout() {
     if (!user?.id) return undefined;
     syncAppNotifications().catch(() => {});
     pollMatchAlerts().catch(() => {});
+    syncBusinessNotifications().catch(() => {});
     const pollInterval = window.setInterval(() => {
       if (document.visibilityState === 'visible') {
         pollMatchAlerts().catch(() => {});
+        syncBusinessNotifications().catch(() => {});
       }
     }, 45 * 1000);
     const syncInterval = window.setInterval(() => {
@@ -39,6 +42,7 @@ export function PrivateLayout() {
       if (document.visibilityState === 'visible') {
         syncAppNotifications().catch(() => {});
         pollMatchAlerts().catch(() => {});
+        syncBusinessNotifications().catch(() => {});
       }
     };
     document.addEventListener('visibilitychange', onVisible);

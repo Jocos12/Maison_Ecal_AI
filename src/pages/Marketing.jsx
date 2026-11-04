@@ -323,6 +323,17 @@ export default function Marketing() {
   const recentApps = useMemo(() => getRecentApplications(applications, 4), [applications]);
   const pendingApps = useMemo(() => getPendingApplications(applications), [applications]);
   const chartMax = Math.max(0, ...chartData.map((d) => Math.max(d.soumises, d.repondues)));
+  const statusRows = useMemo(() => {
+    const counts = {};
+    for (const app of applications) {
+      const key = app.status || 'draft';
+      counts[key] = (counts[key] || 0) + 1;
+    }
+    const max = Math.max(1, ...Object.values(counts));
+    return Object.entries(counts)
+      .filter(([, n]) => n > 0)
+      .map(([status, n]) => ({ status, n, width: Math.round((n / max) * 100) }));
+  }, [applications]);
 
   const loadApplications = useCallback(async () => {
     setLoadingApps(true);
@@ -532,28 +543,50 @@ export default function Marketing() {
               </span>
             </div>
           </div>
-          <div className="mt-4 h-64 w-full">
+          <div className="mt-4 w-full">
             {loadingApps ? (
-              <div className="flex h-full items-center justify-center text-slate-500">
+              <div className="flex h-64 items-center justify-center text-slate-500">
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                 {t('marketingPage.loading')}
               </div>
+            ) : chartMax === 0 ? (
+              <div className="flex h-40 items-center justify-center rounded-xl border border-dashed border-slate-300 px-6 text-center text-sm text-slate-500 dark:border-slate-600">
+                {t('marketingPage.chartEmpty')}
+              </div>
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 8, right: 8, left: -12, bottom: 4 }} barGap={6}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                  <XAxis dataKey="week" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                  <YAxis allowDecimals={false} domain={[0, Math.max(chartMax, 3)]} tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                  <Tooltip
-                    labelFormatter={(_, payload) => payload?.[0]?.payload?.periode || ''}
-                    formatter={(value, name) => [value, name]}
-                    cursor={{ fill: 'rgba(36,71,138,0.06)' }}
-                  />
-                  <Bar dataKey="soumises" name={t('marketingPage.submitted')} fill="#24478a" radius={[5, 5, 0, 0]} maxBarSize={36} />
-                  <Bar dataKey="repondues" name={t('marketingPage.answered')} fill="#10b981" radius={[5, 5, 0, 0]} maxBarSize={36} />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} margin={{ top: 8, right: 8, left: -12, bottom: 4 }} barGap={6}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                    <XAxis dataKey="week" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                    <YAxis allowDecimals={false} domain={[0, Math.max(chartMax, 3)]} tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                    <Tooltip
+                      labelFormatter={(_, payload) => payload?.[0]?.payload?.periode || ''}
+                      formatter={(value, name) => [value, name]}
+                      cursor={{ fill: 'rgba(36,71,138,0.06)' }}
+                    />
+                    <Bar dataKey="soumises" name={t('marketingPage.submitted')} fill="#24478a" radius={[5, 5, 0, 0]} maxBarSize={36} />
+                    <Bar dataKey="repondues" name={t('marketingPage.answered')} fill="#10b981" radius={[5, 5, 0, 0]} maxBarSize={36} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             )}
+            {!loadingApps && statusRows.length > 0 ? (
+              <div className="mt-5">
+                <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{t('marketingPage.statusSplit')}</h3>
+                <ul className="mt-3 space-y-2">
+                  {statusRows.map((row) => (
+                    <li key={row.status} className="grid grid-cols-[7.5rem_1fr_2rem] items-center gap-3 text-sm">
+                      <span className="truncate text-slate-600 dark:text-slate-300">{t(`marketingPage.status.${row.status}`)}</span>
+                      <span className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                        <span className="block h-full rounded-full bg-[#24478a]" style={{ width: `${row.width}%` }} />
+                      </span>
+                      <span className="text-right font-semibold tabular-nums text-slate-900 dark:text-white">{row.n}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
         </section>
 

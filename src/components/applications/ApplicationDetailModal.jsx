@@ -133,12 +133,13 @@ export default function ApplicationDetailModal({
   const [body, setBody] = useState('');
 
   const opp = application?.opportunity || {};
+  const external = Boolean(opp.externalNotice);
   const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.draft;
   const location = opp.ville || opp.city || 'RDC';
   const category = opp.category || opp.platform || 'Logistique';
   const urgency = deadlineUrgency(opp.deadline);
   const notesLen = String(notes || '').length;
-  const canSend = status === 'draft' && Boolean(String(letterText || '').trim());
+  const canSend = !external && status === 'draft' && Boolean(String(letterText || '').trim());
 
   useEffect(() => {
     api
@@ -190,7 +191,7 @@ export default function ApplicationDetailModal({
   };
 
   const generateLetter = async () => {
-    if (!opp._id) return;
+    if (!opp._id || external) return;
     setGeneratingLetter(true);
     try {
       const { data } = await api.post(`/api/ai/opportunities/${opp._id}/letter`);
@@ -576,7 +577,7 @@ export default function ApplicationDetailModal({
                   <button
                     type="button"
                     onClick={generateLetter}
-                    disabled={generatingLetter}
+                    disabled={generatingLetter || external}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800 disabled:opacity-50"
                   >
                     {generatingLetter ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
@@ -719,15 +720,28 @@ export default function ApplicationDetailModal({
             <div className="flex flex-shrink-0 flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-slate-50 px-5 py-4 dark:border-slate-800 dark:bg-slate-900/60">
               <p className="inline-flex items-center gap-1.5 text-xs text-slate-500">
                 <Clock className="h-3.5 w-3.5" />
-                {application?.appliedDate || tracking.sentOn
-                  ? `${t('applications.sentAt')} ${formatDateTime(tracking.sentOn || application.appliedDate)}`
-                  : t('applications.draftHint')}
+                {external
+                  ? t('applications.externalDraft')
+                  : application?.appliedDate || tracking.sentOn
+                    ? `${t('applications.sentAt')} ${formatDateTime(tracking.sentOn || application.appliedDate)}`
+                    : t('applications.draftHint')}
                 {application?.updatedAt ? ` · ${t('applicationsDetail.lastModified')} ${formatDateTime(application.updatedAt)}` : ''}
               </p>
               <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600">
                   {t('common.close')}
                 </button>
+                {external && opp.sourceUrl ? (
+                  <a
+                    href={opp.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-[#24478a] bg-white px-4 py-2 text-sm font-semibold text-[#24478a]"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    {t('applications.openPortal')}
+                  </a>
+                ) : null}
                 {canSend ? (
                   <button
                     type="button"

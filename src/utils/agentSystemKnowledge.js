@@ -6,6 +6,8 @@ const SIDEBAR = [
   { path: '/categories', label: 'Catégories', desc: 'Classification des opportunités par type de service.' },
   { path: '/agent', label: 'Agent IA', desc: 'Collecte automatique et logs de veille.' },
   { path: '/assistant-emploi', label: 'Assistant Emploi', desc: 'Recherche emploi, profil, CV, lettres, conversations.' },
+  { path: '/contrats', label: 'Contrats et travaux', desc: 'CRUD des contrats et travaux M-ECAL, montant gagné, taux de réussite.' },
+  { path: '/cycle', label: 'Cycle de vie', desc: 'Candidatures et contrats dans l’ordre chronologique, avec les changements de statut réellement enregistrés.' },
   { path: '/assistant-emploi?section=linkedin', label: 'LinkedIn RDC', desc: 'Recherches LinkedIn par métier logistique en RDC.' },
   { path: '/messaging', label: 'Messagerie Gmail', desc: 'Emails clients, opportunités, intégration Gmail.' },
   { path: '/marketing', label: 'Marketing', desc: 'Contenus et suggestions marketing M-ECAL.' },
@@ -13,7 +15,8 @@ const SIDEBAR = [
   { path: '/alerts', label: 'Alertes & Notifications', desc: 'Alertes jobs logistiques, email, WhatsApp, navigateur.' },
   { path: '/archive', label: 'Archive', desc: 'Opportunités archivées.' },
   { path: '/settings', label: 'Paramètres', desc: 'Profil organisation, langue, Gmail, alertes.' },
-  { path: '/admin/users', label: 'Utilisateurs', desc: 'Gérer les comptes, CRUD, validation et activité récente (admin).' }
+  { path: '/admin/users', label: 'Utilisateurs', desc: 'Gérer les comptes, CRUD, validation et activité récente (admin).' },
+  { path: '/admin/journal', label: 'Journal d’activité', desc: 'Journal d’audit en lecture seule : qui a créé, modifié, archivé ou supprimé, humain ou agent IA (admin).' }
 ];
 
 function normalizeSnapshot(snapshot = {}) {

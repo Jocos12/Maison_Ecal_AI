@@ -752,6 +752,17 @@ export default function AIAgentModal({ onClose, seedPrompt = null, onSeedConsume
       for (const effect of effects) {
         if (effect.type === 'navigate') navigate(effect.path);
       }
+      if (data.preparedApplication?.offreId && data.awaitConfirmation) {
+        setPendingApply({
+          offreId: data.preparedApplication.offreId,
+          title: data.preparedApplication.title,
+          organization: data.preparedApplication.organization,
+          ville: data.preparedApplication.ville,
+          notes: t('agent.applicationNotes'),
+          awaitConfirmation: true,
+          source: 'chat'
+        });
+      }
       if (data.createdApplication) {
         window.dispatchEvent(new CustomEvent('mecal:applications-updated'));
       }

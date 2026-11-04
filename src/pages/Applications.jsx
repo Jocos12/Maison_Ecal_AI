@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import { ClipboardList, GripVertical } from 'lucide-react';
 import { isLocalFileUrl, sanitizeDocuments } from '../utils/applicationDocuments.js';
 import { stripMarkdown } from '../utils/stripMarkdown.js';
+import { announceApplicationFollowUp, announceApplicationStatus } from '../utils/businessNotifications.js';
 
 function toDateInput(value) {
   if (!value) return '';
@@ -143,6 +144,7 @@ export default function Applications() {
     setApps((list) => list.map((a) => (a._id === id ? { ...a, status } : a)));
     try {
       await api.patch(`/api/applications/${id}`, { status });
+      announceApplicationStatus({ ...current, status }, status);
       toast.success(t('applications.statusUpdated', { status: t(`applications.${status}`) }));
     } catch (e) {
       toast.error(e.response?.data?.message || t('applications.statusError'));
@@ -181,6 +183,14 @@ export default function Applications() {
       });
       toast.success(`Candidature enregistrée, Statut : ${statusLabels[status] || status}`, {
         duration: 2500
+      });
+      if (status !== sel.status) announceApplicationStatus({ ...sel, status }, status);
+      announceApplicationFollowUp({
+        ...sel,
+        status,
+        followUpDate: followUp || null,
+        appliedDate: sentOn || sel.appliedDate || null,
+        sentOn
       });
       setSel(null);
       load();

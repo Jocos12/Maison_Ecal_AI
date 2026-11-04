@@ -15,7 +15,7 @@ function timeTone(level) {
 }
 
 /** One application on the board. The whole card opens the details and can be dragged to another column. */
-export default function ApplicationCard({ app, onClick, onDragStart, onDragEnd, dragging }) {
+export default function ApplicationCard({ app, onClick, onDragStart, onDragEnd, dragging, className = '' }) {
   const { t, lang } = useI18n();
   const locale = lang === 'fr' ? fr : undefined;
   const opp = app.opportunity;
@@ -43,7 +43,7 @@ export default function ApplicationCard({ app, onClick, onDragStart, onDragEnd, 
       }}
       onDragEnd={() => onDragEnd?.()}
       onClick={() => onClick(app)}
-      className={`group relative w-full cursor-pointer rounded-xl border bg-white p-3.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-4 focus-visible:ring-[#24478a]/20 dark:bg-slate-900 ${
+      className={`group relative w-full cursor-pointer rounded-xl border bg-white p-3 text-left shadow-sm transition hover:shadow-md focus:outline-none focus-visible:ring-4 focus-visible:ring-[#24478a]/20 dark:bg-slate-900 ${className} ${
         dragging
           ? 'border-[#24478a] opacity-40'
           : urgency.level === 'critical' || urgency.level === 'passed'
@@ -55,7 +55,7 @@ export default function ApplicationCard({ app, onClick, onDragStart, onDragEnd, 
         className="absolute right-1.5 top-2.5 h-4 w-4 cursor-grab text-slate-300 opacity-0 transition group-hover:opacity-100"
         aria-hidden="true"
       />
-      <p className="line-clamp-3 pr-4 text-[13.5px] font-bold leading-snug text-slate-900 dark:text-white">
+      <p className="line-clamp-2 pr-4 text-[13.5px] font-bold leading-snug text-slate-900 dark:text-white">
         {opp?.title || 'n/d'}
       </p>
       {opp?.organization ? (

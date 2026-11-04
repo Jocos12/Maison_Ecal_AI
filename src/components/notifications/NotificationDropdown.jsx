@@ -6,6 +6,7 @@ import { useI18n } from '../../context/I18nContext.jsx';
 import { getNotifications, markAllRead, markRead } from '../../utils/notificationStore.js';
 import { syncAppNotifications } from '../../utils/syncAppNotifications.js';
 import { requestMatchBrowserPermission } from '../../utils/pollMatchAlerts.js';
+import { useVoiceMode } from '../../context/VoiceModeContext.jsx';
 import NotificationDetailModal from './NotificationDetailModal.jsx';
 import { kindOf } from './notificationKinds.js';
 
@@ -36,6 +37,7 @@ function markReadOnServer(id) {
 export default function NotificationDropdown() {
   const { t } = useI18n();
   const navigate = useNavigate();
+  const { setPendingApply } = useVoiceMode();
   const [open, setOpen] = useState(false);
   const [unreadItems, setUnreadItems] = useState(() => getNotifications().filter((n) => !n.read));
   const [selected, setSelected] = useState(null);
@@ -90,7 +92,9 @@ export default function NotificationDropdown() {
   }, [selected, refresh]);
 
   const openPage = (href) => {
+    const staged = selected?.type === 'agent-confirm' ? selected.confirm : null;
     closeDetail();
+    if (staged?.offreId) setPendingApply({ ...staged, silent: true });
     navigate(href);
   };
 
