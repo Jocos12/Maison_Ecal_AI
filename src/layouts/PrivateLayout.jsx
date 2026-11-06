@@ -1,5 +1,7 @@
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import ErrorBoundary from '../components/common/ErrorBoundary.jsx';
+import PageLoader from '../components/common/PageLoader.jsx';
 import Navbar from '../components/layout/Navbar.jsx';
 import SidebarDock from '../components/layout/SidebarDock.jsx';
 import FloatingDock from '../components/layout/FloatingDock.jsx';
@@ -92,7 +94,12 @@ export function PrivateLayout() {
               isJobAssistant ? 'overflow-hidden p-3 md:p-4' : 'overflow-x-auto overflow-y-auto p-4 md:p-8'
             }`}
           >
-            <Outlet />
+            {/* Erreur ou chargement limités à la zone de contenu : le menu reste affiché. */}
+            <ErrorBoundary resetKey={location.pathname}>
+              <Suspense fallback={<PageLoader />}>
+                <Outlet />
+              </Suspense>
+            </ErrorBoundary>
           </main>
         </div>
       </div>

@@ -1,35 +1,41 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AppProvider } from './context/AppContext.jsx';
 import { I18nProvider } from './context/I18nContext.jsx';
 import { ThemeProvider } from './context/ThemeContext.jsx';
 import { VoiceModeProvider } from './context/VoiceModeContext.jsx';
 import { PrivateLayout } from './layouts/PrivateLayout.jsx';
+import { AdminRoute } from './layouts/AdminRoute.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
 import SignupPage from './pages/auth/SignupPage.jsx';
 import VerifyOTPPage from './pages/auth/VerifyOTPPage.jsx';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage.jsx';
 import PendingApprovalPage from './pages/auth/PendingApprovalPage.jsx';
-import AdminUsers from './pages/AdminUsers.jsx';
-import AuditJournal from './pages/AuditJournal.jsx';
-import Dashboard from './pages/Dashboard.jsx';
-import Opportunities from './pages/Opportunities.jsx';
-import StrictMecal from './pages/StrictMecal.jsx';
-import Applications from './pages/Applications.jsx';
-import Settings from './pages/Settings.jsx';
-import Sources from './pages/Sources.jsx';
-import Nrc from './pages/Nrc.jsx';
-import Categories from './pages/Categories.jsx';
-import Agent from './pages/Agent.jsx';
-import Analytics from './pages/Analytics.jsx';
-import Alerts from './pages/Alerts.jsx';
-import Archive from './pages/Archive.jsx';
-import Messaging from './pages/Messaging.jsx';
-import Marketing from './pages/Marketing.jsx';
-import Contracts from './pages/Contracts.jsx';
-import Lifecycle from './pages/Lifecycle.jsx';
-import JobAssistant from './pages/JobAssistant.jsx';
 import I18nUserSync from './components/I18nUserSync.jsx';
+import ErrorBoundary from './components/common/ErrorBoundary.jsx';
+import PageLoader from './components/common/PageLoader.jsx';
+
+// Pages chargées à la demande : seul l'écran ouvert est téléchargé.
+const AdminUsers = lazy(() => import('./pages/AdminUsers.jsx'));
+const AuditJournal = lazy(() => import('./pages/AuditJournal.jsx'));
+const Dashboard = lazy(() => import('./pages/Dashboard.jsx'));
+const Opportunities = lazy(() => import('./pages/Opportunities.jsx'));
+const StrictMecal = lazy(() => import('./pages/StrictMecal.jsx'));
+const Applications = lazy(() => import('./pages/Applications.jsx'));
+const Settings = lazy(() => import('./pages/Settings.jsx'));
+const Sources = lazy(() => import('./pages/Sources.jsx'));
+const Nrc = lazy(() => import('./pages/Nrc.jsx'));
+const Categories = lazy(() => import('./pages/Categories.jsx'));
+const Agent = lazy(() => import('./pages/Agent.jsx'));
+const Analytics = lazy(() => import('./pages/Analytics.jsx'));
+const Alerts = lazy(() => import('./pages/Alerts.jsx'));
+const Archive = lazy(() => import('./pages/Archive.jsx'));
+const Messaging = lazy(() => import('./pages/Messaging.jsx'));
+const Marketing = lazy(() => import('./pages/Marketing.jsx'));
+const Contracts = lazy(() => import('./pages/Contracts.jsx'));
+const Lifecycle = lazy(() => import('./pages/Lifecycle.jsx'));
+const JobAssistant = lazy(() => import('./pages/JobAssistant.jsx'));
 
 export default function App() {
   return (
@@ -47,6 +53,20 @@ export default function App() {
               error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } }
             }}
           />
+          <AppRoutes />
+          </BrowserRouter>
+          </VoiceModeProvider>
+        </I18nProvider>
+      </AppProvider>
+    </ThemeProvider>
+  );
+}
+
+function AppRoutes() {
+  const location = useLocation();
+  return (
+    <ErrorBoundary resetKey={location.pathname}>
+      <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
@@ -74,15 +94,14 @@ export default function App() {
               <Route path="/cycle" element={<Lifecycle />} />
               <Route path="/archive" element={<Archive />} />
               <Route path="/settings" element={<Settings />} />
-              <Route path="/admin/users" element={<AdminUsers />} />
-              <Route path="/admin/journal" element={<AuditJournal />} />
+              <Route element={<AdminRoute />}>
+                <Route path="/admin/users" element={<AdminUsers />} />
+                <Route path="/admin/journal" element={<AuditJournal />} />
+              </Route>
             </Route>
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
-          </BrowserRouter>
-          </VoiceModeProvider>
-        </I18nProvider>
-      </AppProvider>
-    </ThemeProvider>
+      </Suspense>
+    </ErrorBoundary>
   );
 }
